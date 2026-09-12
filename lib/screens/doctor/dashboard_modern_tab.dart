@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/appointment_model.dart';
@@ -215,9 +214,9 @@ class DashboardModernTab extends StatelessWidget {
             );
           },
           child: const Center(
-            child: FaIcon(
-              FontAwesomeIcons.bell,
-              size: 19,
+            child: Icon(
+              LucideIcons.bell,
+              size: 20,
               color: Color(0xFF1A1F36),
             ),
           ),
@@ -309,8 +308,8 @@ class DashboardModernTab extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Center(
-                    child: FaIcon(
-                      FontAwesomeIcons.stethoscope,
+                    child: Icon(
+                      LucideIcons.stethoscope,
                       size: 38,
                       color: Colors.white,
                     ),
@@ -343,7 +342,7 @@ class DashboardModernTab extends StatelessWidget {
       children: [
         Expanded(
           child: _QuickActionCard(
-            icon: FontAwesomeIcons.calendarCheck,
+            icon: LucideIcons.calendar_check,
             label: 'Rendez-vous',
             gradient: const LinearGradient(
               colors: [Color(0xFFE0BBE4), Color(0xFFD5AAD8)],
@@ -367,7 +366,7 @@ class DashboardModernTab extends StatelessWidget {
               final pendingCount = trProvider.pendingForDoctor(doctorId).length;
               
               return _QuickActionCard(
-                icon: FontAwesomeIcons.hospitalUser,
+                icon: LucideIcons.hospital,
                 label: 'Demandes',
                 badge: pendingCount,
                 gradient: const LinearGradient(
@@ -388,7 +387,7 @@ class DashboardModernTab extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: _QuickActionCard(
-            icon: FontAwesomeIcons.wallet,
+            icon: LucideIcons.wallet,
             label: 'Paiements',
             gradient: const LinearGradient(
               colors: [Color(0xFFFFD3A5), Color(0xFFFDB99B)],
@@ -420,7 +419,7 @@ class DashboardModernTab extends StatelessWidget {
               child: _StatCard(
                 value: '${todayAppointments.length}',
                 label: 'Rendez-vous',
-                icon: FontAwesomeIcons.calendarDays,
+                icon: LucideIcons.calendar_days,
                 color: const Color(0xFF667EEA),
               ),
             ),
@@ -429,7 +428,7 @@ class DashboardModernTab extends StatelessWidget {
               child: _StatCard(
                 value: '$confirmedToday',
                 label: 'Confirmés',
-                icon: FontAwesomeIcons.circleCheck,
+                icon: LucideIcons.circle_check,
                 color: const Color(0xFF48BB78),
               ),
             ),
@@ -454,7 +453,7 @@ class DashboardModernTab extends StatelessWidget {
               title: 'Total Patients',
               value: '${stats.totalPatients}',
               subtitle: 'Patients suivis',
-              icon: FontAwesomeIcons.users,
+              icon: LucideIcons.users,
               gradient: const LinearGradient(
                 colors: [Color(0xFFF093FB), Color(0xFFF5576C)],
                 begin: Alignment.topLeft,
@@ -466,7 +465,7 @@ class DashboardModernTab extends StatelessWidget {
               title: 'Messages non lus',
               value: '$unreadMessages',
               subtitle: 'Nouveaux messages',
-              icon: FontAwesomeIcons.solidCommentDots,
+              icon: LucideIcons.message_square,
               gradient: const LinearGradient(
                 colors: [Color(0xFF4FACFE), Color(0xFF00F2FE)],
                 begin: Alignment.topLeft,
@@ -478,7 +477,7 @@ class DashboardModernTab extends StatelessWidget {
               title: 'Revenus du mois',
               value: '${NumberFormat('#,###', 'fr_FR').format(stats.revenue)} F',
               subtitle: 'Ce mois-ci',
-              icon: FontAwesomeIcons.chartLine,
+              icon: LucideIcons.trending_up,
               gradient: const LinearGradient(
                 colors: [Color(0xFFFAD961), Color(0xFFF76B1C)],
                 begin: Alignment.topLeft,
@@ -522,7 +521,7 @@ class DashboardModernTab extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
             ),
             child: Center(
-              child: FaIcon(
+              child: Icon(
                 icon,
                 size: 26,
                 color: Colors.white,
@@ -625,7 +624,7 @@ class _QuickActionCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Center(
-                        child: FaIcon(
+                        child: Icon(
                           icon,
                           size: 22,
                           color: Colors.white,
@@ -722,7 +721,7 @@ class _StatCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
-                  child: FaIcon(
+                  child: Icon(
                     icon,
                     size: 17,
                     color: color,

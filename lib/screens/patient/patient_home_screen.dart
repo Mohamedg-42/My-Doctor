@@ -1858,7 +1858,7 @@ class _InfoGrid extends StatelessWidget {
         ),
       if (user?.commune != null)
         _InfoItem('Commune', user!.commune!, LucideIcons.map_pin),
-      if (user?.city != null) _InfoItem('Ville', user!.city!, LucideIcons.building_2),
+      if (user?.city != null) _InfoItem('Ville', user!.city!, LucideIcons.building_complex),
       if (user?.phone != null) _InfoItem('Téléphone', user!.phone, LucideIcons.phone),
       if (user?.profession != null)
         _InfoItem('Profession', user!.profession!, LucideIcons.briefcase),

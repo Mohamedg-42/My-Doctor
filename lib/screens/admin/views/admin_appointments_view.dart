@@ -293,7 +293,7 @@ class _AppointmentAdminCard extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(isVideo ? LucideIcons.video : LucideIcons.building_2, size: 12, color: isVideo ? AppColors.brandTurquoise : AppColors.brandBlue),
+                    Icon(isVideo ? LucideIcons.video : LucideIcons.building_complex, size: 12, color: isVideo ? AppColors.brandTurquoise : AppColors.brandBlue),
                     const SizedBox(width: 4),
                     Text(
                       isVideo ? 'Téléconsultation' : 'En cabinet',
