@@ -1,0 +1,527 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+
+import '../../core/theme/app_theme.dart';
+import '../../models/message_model.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/treating_request_provider.dart';
+import '../../services/agora_service.dart';
+import '../../widgets/common/avatar_widget.dart';
+import '../shared/audio_call_screen.dart';
+import '../shared/video_call_screen.dart';
+
+/// Écran de chat temps réel côté médecin
+class PatientChatScreen extends StatefulWidget {
+  final String patientId;
+  final String patientName;
+  final String? patientImageUrl;
+
+  const PatientChatScreen({
+    super.key,
+    required this.patientId,
+    required this.patientName,
+    this.patientImageUrl,
+  });
+
+  @override
+  State<PatientChatScreen> createState() => _PatientChatScreenState();
+}
+
+class _PatientChatScreenState extends State<PatientChatScreen> {
+  final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  late String _conversationId;
+  bool _isSending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final auth = context.read<AuthProvider>();
+    _conversationId = ConversationHelper.generateConversationId(
+      widget.patientId,
+      auth.currentUser!.id,
+    );
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  /// Envoyer un message
+  Future<void> _sendMessage() async {
+    if (_messageController.text.trim().isEmpty) return;
+
+    final auth = context.read<AuthProvider>();
+    final content = _messageController.text.trim();
+    
+    setState(() => _isSending = true);
+
+    try {
+      final message = ChatMessage(
+        id: '',
+        senderId: auth.currentUser!.id,
+        senderName: 'Dr. ${auth.currentUser!.firstName} ${auth.currentUser!.lastName}',
+        senderRole: 'doctor',
+        content: content,
+        timestamp: DateTime.now(),
+        isRead: false,
+      );
+
+      await ConversationHelper.getMessagesCollection(_conversationId)
+          .add(message.toFirestore());
+
+      _messageController.clear();
+      
+      // Scroller vers le bas après envoi
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de l\'envoi: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() => _isSending = false);
+    }
+  }
+
+  /// Démarrer un appel audio
+  void _startAudioCall(BuildContext context) {
+    final auth = context.read<AuthProvider>();
+    
+    // Générer nom de canal et UID
+    final channelName = AgoraService.generateChannelName(
+      widget.patientId,
+      auth.currentUser!.id,
+    );
+    final uid = AgoraService.generateUid(auth.currentUser!.id);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AudioCallScreen(
+          channelName: channelName,
+          callerName: 'Dr. ${auth.currentUser!.firstName} ${auth.currentUser!.lastName}',
+          callerRole: 'doctor',
+          callerAvatar: null,
+          receiverName: widget.patientName,
+          receiverRole: 'patient',
+          receiverAvatar: widget.patientImageUrl,
+          uid: uid,
+        ),
+      ),
+    );
+  }
+
+  /// Démarrer un appel vidéo
+  void _startVideoCall(BuildContext context) {
+    final auth = context.read<AuthProvider>();
+    
+    // Générer nom de canal et UID
+    final channelName = AgoraService.generateChannelName(
+      widget.patientId,
+      auth.currentUser!.id,
+    );
+    final uid = AgoraService.generateUid(auth.currentUser!.id);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => VideoCallScreen(
+          channelName: channelName,
+          callerName: 'Dr. ${auth.currentUser!.firstName} ${auth.currentUser!.lastName}',
+          callerRole: 'doctor',
+          callerAvatar: null,
+          receiverName: widget.patientName,
+          receiverRole: 'patient',
+          receiverAvatar: widget.patientImageUrl,
+          uid: uid,
+        ),
+      ),
+    );
+  }
+
+  /// Formater l'heure du message
+  String _formatMessageTime(DateTime timestamp) {
+    final now = DateTime.now();
+    final diff = now.difference(timestamp);
+
+    if (diff.inMinutes < 1) {
+      return 'À l\'instant';
+    } else if (diff.inHours < 1) {
+      return '${diff.inMinutes} min';
+    } else if (diff.inDays < 1) {
+      return DateFormat('HH:mm').format(timestamp);
+    } else if (diff.inDays == 1) {
+      return 'Hier ${DateFormat('HH:mm').format(timestamp)}';
+    } else {
+      return DateFormat('dd/MM/yyyy HH:mm').format(timestamp);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final trProvider = context.watch<TreatingRequestProvider>();
+
+    // Vérifier l'accès (inversé pour le médecin)
+    final hasAccess = trProvider.hasAccessTo(widget.patientId, auth.currentUser!.id);
+
+    if (!hasAccess) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Chat'),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.lock_outline,
+                size: 80,
+                color: Colors.grey[400],
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Accès refusé',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: Text(
+                  'Le patient doit avoir une demande acceptée pour accéder au chat',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.grey[600],
+                      ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: AppColors.backgroundGrey,
+      appBar: AppBar(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: Row(
+          children: [
+            AvatarWidget(
+              imageUrl: widget.patientImageUrl,
+              initials: widget.patientName.isNotEmpty
+                  ? widget.patientName.substring(0, 1).toUpperCase()
+                  : 'P',
+              size: 36,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.patientName,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    'Patient',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.phone, color: Colors.white),
+            onPressed: () => _startAudioCall(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.videocam, color: Colors.white),
+            onPressed: () => _startVideoCall(context),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Liste des messages
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: ConversationHelper.getMessagesCollection(_conversationId)
+                  .orderBy('timestamp', descending: false)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Erreur de chargement',
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    ),
+                  );
+                }
+
+                final messages = snapshot.data?.docs
+                        .map((doc) => ChatMessage.fromFirestore(doc))
+                        .toList() ??
+                    [];
+
+                if (messages.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.chat_bubble_outline,
+                          size: 80,
+                          color: Colors.grey[300],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Aucun message',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Commencez la conversation !',
+                          style: TextStyle(color: Colors.grey[500]),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                // Auto-scroll au bas quand nouveau message
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (_scrollController.hasClients) {
+                    _scrollController.animateTo(
+                      _scrollController.position.maxScrollExtent,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOut,
+                    );
+                  }
+                });
+
+                return ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final message = messages[index];
+                    final isMe = message.senderId == auth.currentUser!.id;
+
+                    return _MessageBubble(
+                      message: message,
+                      isMe: isMe,
+                      time: _formatMessageTime(message.timestamp),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+
+          // Zone de saisie
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.backgroundGrey,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: TextField(
+                        controller: _messageController,
+                        decoration: const InputDecoration(
+                          hintText: 'Votre message...',
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                        ),
+                        maxLines: null,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => _sendMessage(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    decoration: const BoxDecoration(
+                      gradient: AppColors.cyanBlueGradient,
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: _isSending
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.send, color: Colors.white),
+                      onPressed: _isSending ? null : _sendMessage,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Widget de bulle de message
+class _MessageBubble extends StatelessWidget {
+  final ChatMessage message;
+  final bool isMe;
+  final String time;
+
+  const _MessageBubble({
+    required this.message,
+    required this.isMe,
+    required this.time,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (!isMe) ...[
+            const CircleAvatar(
+              radius: 16,
+              backgroundColor: AppColors.primaryLight,
+              child: Icon(Icons.person, size: 18, color: Colors.white),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Flexible(
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.7,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: isMe ? AppColors.cyanBlueGradient : null,
+                color: isMe ? null : Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(20),
+                  topRight: const Radius.circular(20),
+                  bottomLeft: Radius.circular(isMe ? 20 : 4),
+                  bottomRight: Radius.circular(isMe ? 4 : 20),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 5,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    message.content,
+                    style: TextStyle(
+                      color: isMe ? Colors.white : Colors.black87,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    time,
+                    style: TextStyle(
+                      color: isMe
+                          ? Colors.white.withValues(alpha: 0.7)
+                          : Colors.grey[500],
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (isMe) ...[
+            const SizedBox(width: 8),
+            const CircleAvatar(
+              radius: 16,
+              backgroundColor: AppColors.primary,
+              child: Icon(Icons.person, size: 18, color: Colors.white),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="MédiLink Care - Téléconsultation médicale">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+  <!-- Permissions caméra / microphone pour la téléconsultation -->
+  <meta http-equiv="Permissions-Policy" content="camera=*, microphone=*, display-capture=*">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="MédiLink Care">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png" />
+
+  <title>MédiLink Care</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    /* Arrière-plan identique à l'écran d'accueil Flutter (#F8FAFC) - Aucun écran noir */
+    body {
+      background-color: #F8FAFC;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    #loading-indicator {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #F8FAFC;
+      z-index: 999999;
+      color: #0f172a;
+      transition: opacity 0.25s ease, visibility 0.25s ease;
+    }
+
+    .loader-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 24px;
+      max-width: 320px;
+    }
+
+    /* Capsule Logo officielle identique à l'écran de choix de profil (220x140) */
+    .logo-container {
+      background: #ffffff;
+      padding: 16px;
+      border-radius: 28px;
+      box-shadow: 0 8px 24px rgba(10, 27, 48, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      width: 220px;
+      height: 140px;
+      box-sizing: border-box;
+      animation: pulse-gentle 2.4s ease-in-out infinite;
+    }
+
+    .logo-img {
+      max-height: 108px;
+      max-width: 188px;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      display: block;
+    }
+
+    @keyframes pulse-gentle {
+
+      0%,
+      100% {
+        transform: scale(1);
+        box-shadow: 0 8px 24px rgba(10, 27, 48, 0.05);
+      }
+
+      50% {
+        transform: scale(1.02);
+        box-shadow: 0 12px 30px rgba(0, 191, 165, 0.15);
+      }
+    }
+
+    /* Spinner moderne turquoise / bleu médical */
+    .spinner {
+      width: 34px;
+      height: 34px;
+      border: 3px solid #e2e8f0;
+      border-top-color: #00BFA5;
+      border-right-color: #2D9CDB;
+      border-radius: 50%;
+      animation: spin 0.85s cubic-bezier(0.68, -0.4, 0.27, 1.4) infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .loading-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0;
+      letter-spacing: 0.6px;
+      color: #0f172a;
+    }
+
+    .loading-subtitle {
+      font-size: 13px;
+      color: #64748b;
+      margin-top: 6px;
+      margin-bottom: 18px;
+      font-weight: 500;
+      letter-spacing: 0.2px;
+    }
+
+    /* Barre de progression subtile */
+    .progress-bar-container {
+      width: 160px;
+      height: 4px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-bar-line {
+      width: 40%;
+      height: 100%;
+      background: linear-gradient(90deg, #00BFA5, #2D9CDB);
+      border-radius: 4px;
+      position: absolute;
+      animation: progress-move 1.6s ease-in-out infinite;
+    }
+
+    @keyframes progress-move {
+      0% {
+        left: -40%;
+        width: 30%;
+      }
+
+      50% {
+        left: 35%;
+        width: 50%;
+      }
+
+      100% {
+        left: 100%;
+        width: 30%;
+      }
+    }
+  </style>
+  <script>
+    // Détection immédiate du rafraîchissement avec session existante
+    // Évite totalement d'afficher la page de chargement lors d'un F5
+    (function() {
+      try {
+        var hasSession = window.localStorage.getItem('flutter.auth_token') ||
+                         window.localStorage.getItem('flutter.user_role') ||
+                         window.localStorage.getItem('flutter.user_id') ||
+                         window.localStorage.getItem('flutter.last_active_route');
+        if (hasSession) {
+          var style = document.createElement('style');
+          style.id = 'suppress-loader-style';
+          style.innerHTML = '#loading-indicator { display: none !important; }';
+          document.head.appendChild(style);
+        }
+      } catch (e) {}
+    })();
+  </script>
+</head>
+
+<body>
+  <div id="loading-indicator">
+    <div class="loader-content">
+      <div class="logo-container">
+        <img class="logo-img" src="logo.png" alt="My Doctor Logo"
+          onerror="this.style.display='none'; document.getElementById('fallback-title').style.display='block';">
+        <div id="fallback-title" style="display:none; font-weight:bold; font-size:22px; color:#0A5C80;">my doctor</div>
+      </div>
+      <div class="spinner"></div>
+      <h1 class="loading-title">My Doctor</h1>
+      <p class="loading-subtitle">Chargement de votre espace santé...</p>
+      <div class="progress-bar-container">
+        <div class="progress-bar-line"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var loaderDismissed = false;
+    function hideLoader() {
+      if (loaderDismissed) return;
+      loaderDismissed = true;
+      var loader = document.getElementById('loading-indicator');
+      if (loader) {
+        loader.style.opacity = '0';
+        loader.style.pointerEvents = 'none';
+        setTimeout(function () {
+          if (loader && loader.parentNode) loader.parentNode.removeChild(loader);
+        }, 250);
+      }
+    }
+
+    // Le loader ne s'efface que lorsque Flutter a rendu ses pixels (zéro écran noir intermédiaire)
+    window.addEventListener('flutter-first-frame', hideLoader);
+
+    // Fallback de sécurité si l'événement n'est pas supporté par le navigateur
+    window.addEventListener('load', function () {
+      setTimeout(hideLoader, 5000);
+    });
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+
+</html>
