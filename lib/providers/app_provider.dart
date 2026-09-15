@@ -159,9 +159,49 @@ class AppProvider extends ChangeNotifier {
   }
 
   void _loadMockData() {
-    // ✅ Toutes les données de démo ont été supprimées
-    // Notifications, paiements, messages et avis vides par défaut
-    _notifications = [];
+    // Initialisation avec des notifications réalistes
+    _notifications = [
+      AppNotification(
+        id: 'notif_1',
+        title: 'Rappel de consultation',
+        body: 'Votre rendez-vous avec le Dr. KOUAME Jean est confirmé pour demain à 10:30.',
+        type: NotifType.appointment,
+        createdAt: DateTime.now().subtract(const Duration(minutes: 25)),
+        isRead: false,
+      ),
+      AppNotification(
+        id: 'notif_2',
+        title: 'Nouvelle ordonnance disponible',
+        body: 'Le Dr. KOUAME Jean a prescrit une nouvelle ordonnance dans votre dossier médical.',
+        type: NotifType.appointment,
+        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+        isRead: false,
+      ),
+      AppNotification(
+        id: 'notif_3',
+        title: 'Médecin traitant assigné',
+        body: 'Le Dr. KOUAME Jean a accepté votre demande de prise en charge.',
+        type: NotifType.system,
+        createdAt: DateTime.now().subtract(const Duration(hours: 4)),
+        isRead: false,
+      ),
+      AppNotification(
+        id: 'notif_4',
+        title: 'Paiement confirmé',
+        body: 'Votre règlement de 15 000 F CFA pour votre consultation a été validé avec succès.',
+        type: NotifType.payment,
+        createdAt: DateTime.now().subtract(const Duration(days: 1)),
+        isRead: true,
+      ),
+      AppNotification(
+        id: 'notif_5',
+        title: 'Rappel carnet vaccinal',
+        body: 'Rappel : Le rappel du vaccin Hépatite B est recommandé selon votre calendrier vaccinal.',
+        type: NotifType.system,
+        createdAt: DateTime.now().subtract(const Duration(days: 3)),
+        isRead: true,
+      ),
+    ];
     _payments = [];
     _chatMessages = {};
     _reviews = [];
@@ -189,10 +229,105 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Méthode pour charger des notifications de démo pour les médecins
+  // Charger les notifications pour l'espace Médecin
   void loadDoctorDemoNotifications() {
-    // ✅ Notifications de démo supprimées - liste vide par défaut
-    _notifications = [];
+    _notifications = [
+      AppNotification(
+        id: 'notif_doc_1',
+        title: 'Nouvelle demande de suivi',
+        body: 'Mme KOUASSI Marie vous a sélectionné comme médecin traitant.',
+        type: NotifType.appointment,
+        createdAt: DateTime.now().subtract(const Duration(minutes: 12)),
+        isRead: false,
+      ),
+      AppNotification(
+        id: 'notif_doc_2',
+        title: 'Nouveau rendez-vous confirmé',
+        body: 'M. KOUAME Jean a réservé une téléconsultation pour demain à 10:30.',
+        type: NotifType.videoCall,
+        createdAt: DateTime.now().subtract(const Duration(hours: 1, minutes: 20)),
+        isRead: false,
+      ),
+      AppNotification(
+        id: 'notif_doc_3',
+        title: 'Paiement consultation validé',
+        body: 'Paiement de 15 000 F CFA reçu via Orange Money pour la consultation #MD-8842.',
+        type: NotifType.payment,
+        createdAt: DateTime.now().subtract(const Duration(hours: 3)),
+        isRead: false,
+      ),
+      AppNotification(
+        id: 'notif_doc_4',
+        title: 'Nouveau message patient',
+        body: 'Mme DIALLO Awa : "Docteur, mes bilans d\'analyses sont disponibles dans mon dossier."',
+        type: NotifType.message,
+        createdAt: DateTime.now().subtract(const Duration(hours: 5)),
+        isRead: false,
+      ),
+      AppNotification(
+        id: 'notif_doc_5',
+        title: 'Mise à jour carnet de santé',
+        body: 'Le dossier et carnet de santé de M. Marc Yao ont été mis à jour par le patient.',
+        type: NotifType.system,
+        createdAt: DateTime.now().subtract(const Duration(days: 1)),
+        isRead: true,
+      ),
+      AppNotification(
+        id: 'notif_doc_6',
+        title: 'Demande de renouvellement',
+        body: 'M. KOFFI Yao a sollicité le renouvellement de son ordonnance d\'antihypertenseurs.',
+        type: NotifType.review,
+        createdAt: DateTime.now().subtract(const Duration(days: 2)),
+        isRead: true,
+      ),
+    ];
+    notifyListeners();
+  }
+
+  // Charger les notifications pour l'espace Patient
+  void loadPatientNotifications() {
+    _notifications = [
+      AppNotification(
+        id: 'notif_pat_1',
+        title: 'Rappel de consultation',
+        body: 'Votre rendez-vous avec le Dr. KOUAME Jean est confirmé pour demain à 10:30.',
+        type: NotifType.appointment,
+        createdAt: DateTime.now().subtract(const Duration(minutes: 25)),
+        isRead: false,
+      ),
+      AppNotification(
+        id: 'notif_pat_2',
+        title: 'Nouvelle ordonnance disponible',
+        body: 'Le Dr. KOUAME Jean a prescrit une nouvelle ordonnance dans votre dossier médical.',
+        type: NotifType.appointment,
+        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+        isRead: false,
+      ),
+      AppNotification(
+        id: 'notif_pat_3',
+        title: 'Médecin traitant assigné',
+        body: 'Le Dr. KOUAME Jean a accepté votre demande de prise en charge.',
+        type: NotifType.system,
+        createdAt: DateTime.now().subtract(const Duration(hours: 4)),
+        isRead: false,
+      ),
+      AppNotification(
+        id: 'notif_pat_4',
+        title: 'Paiement confirmé',
+        body: 'Votre règlement de 15 000 F CFA pour votre consultation a été validé avec succès.',
+        type: NotifType.payment,
+        createdAt: DateTime.now().subtract(const Duration(days: 1)),
+        isRead: true,
+      ),
+      AppNotification(
+        id: 'notif_pat_5',
+        title: 'Rappel carnet vaccinal',
+        body: 'Rappel : Le rappel du vaccin Hépatite B est recommandé selon votre calendrier vaccinal.',
+        type: NotifType.system,
+        createdAt: DateTime.now().subtract(const Duration(days: 3)),
+        isRead: true,
+      ),
+    ];
     notifyListeners();
   }
 

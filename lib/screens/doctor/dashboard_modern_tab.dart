@@ -7,6 +7,7 @@ import '../../models/appointment_model.dart';
 import '../../models/user_model.dart';
 import '../../services/database_service.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/app_provider.dart';
 import '../../providers/doctor_provider.dart';
 import '../../providers/treating_request_provider.dart';
 import '../../providers/message_provider.dart';
@@ -127,41 +128,77 @@ class DashboardModernTab extends StatelessWidget {
     );
   }
 
-  /// Bouton notifications avec badge
+  /// Bouton notifications avec badge rouge
   Widget _buildNotificationButton(BuildContext context) {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    return Consumer<AppProvider>(
+      builder: (context, app, _) {
+        final unreadCount = app.notifications.where((n) => !n.isRead).length;
+        return Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const DoctorNotificationsScreen()),
-            );
-          },
-          child: const Center(
-            child: Icon(
-              LucideIcons.bell,
-              size: 20,
-              color: Color(0xFF1A1F36),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DoctorNotificationsScreen()),
+                );
+              },
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const Center(
+                    child: Icon(
+                      LucideIcons.bell,
+                      size: 20,
+                      color: Color(0xFF1A1F36),
+                    ),
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444), // Rouge vif
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                        child: Center(
+                          child: Text(
+                            unreadCount > 9 ? '9+' : '$unreadCount',
+                            style: const TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 9,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
