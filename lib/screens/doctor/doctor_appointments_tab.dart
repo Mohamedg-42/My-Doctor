@@ -5,6 +5,7 @@ import '../../core/theme/app_theme.dart';
 import '../../models/appointment_model.dart';
 import '../../providers/doctor_provider.dart';
 import '../../widgets/common/appointment_card.dart';
+import '../patient/medical_record_screen.dart';
 
 /// Onglet et écran de consultation des rendez-vous pour le praticien
 class DoctorAppointmentsTab extends StatefulWidget {
@@ -88,7 +89,58 @@ class DoctorAptList extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (_, i) => Column(
         children: [
-          AppointmentCard(appointment: apts[i], isDoctor: isDoctor, onTap: () {}),
+          AppointmentCard(
+            appointment: apts[i],
+            isDoctor: isDoctor,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MedicalRecordScreen(
+                    patientName: apts[i].patientName,
+                    patientId: apts[i].patientId,
+                    patientAvatar: apts[i].patientAvatar,
+                    isDoctorView: true,
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => MedicalRecordScreen(
+                          patientName: apts[i].patientName,
+                          patientId: apts[i].patientId,
+                          patientAvatar: apts[i].patientAvatar,
+                          isDoctorView: true,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(LucideIcons.clipboard_list, size: 14),
+                  label: const Text(
+                    'Consulter Dossier Médical',
+                    style: TextStyle(fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.brandNavy,
+                    side: const BorderSide(color: AppColors.brandNavy),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                  ),
+                ),
+              ),
+            ],
+          ),
           if (showAcceptReject) ...[
             const SizedBox(height: 8),
             Row(

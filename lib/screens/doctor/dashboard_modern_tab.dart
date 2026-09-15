@@ -15,9 +15,9 @@ import 'doctor_requests_screen.dart';
 import 'doctor_payment_screen.dart';
 import 'doctor_notifications_screen.dart';
 import 'edit_profile_screen.dart';
-import 'manage_slots_screen.dart';
 import '../../widgets/doctor/set_patient_capacity_dialog.dart';
 import 'doctor_appointments_tab.dart';
+import '../patient/medical_record_screen.dart';
 
 /// Tableau de bord moderne pour médecin
 /// Design inspiré d'applications médicales/assurance modernes
@@ -281,77 +281,105 @@ class DashboardModernTab extends StatelessWidget {
 
   /// Actions rapides (3 cartes)
   Widget _buildQuickActions(BuildContext context) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _QuickActionCard(
-            icon: LucideIcons.calendar_check,
-            label: 'Rendez-vous',
-            gradient: const LinearGradient(
-              colors: [Color(0xFFE0BBE4), Color(0xFFD5AAD8)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            onTap: () {
-              if (onNavigateToAppointments != null) {
-                onNavigateToAppointments!();
-              } else {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => DoctorAppointmentsTab(
-                      onBackToDashboard: () => Navigator.pop(context),
-                    ),
-                  ),
-                );
-              }
-            },
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Consumer<TreatingRequestProvider>(
-            builder: (context, trProvider, _) {
-              final auth = context.read<AuthProvider>();
-              final doctorId = auth.doctorProfile?.id ?? '';
-              final pendingCount = trProvider.pendingForDoctor(doctorId).length;
-              
-              return _QuickActionCard(
-                icon: LucideIcons.hospital,
-                label: 'Demandes',
-                badge: pendingCount,
+        Row(
+          children: [
+            Expanded(
+              child: _QuickActionCard(
+                icon: LucideIcons.calendar_check,
+                label: 'Rendez-vous',
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFA8E6CF), Color(0xFF88D8B0)],
+                  colors: [Color(0xFFE0BBE4), Color(0xFFD5AAD8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                onTap: () {
+                  if (onNavigateToAppointments != null) {
+                    onNavigateToAppointments!();
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DoctorAppointmentsTab(
+                          onBackToDashboard: () => Navigator.pop(context),
+                        ),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Consumer<TreatingRequestProvider>(
+                builder: (context, trProvider, _) {
+                  final auth = context.read<AuthProvider>();
+                  final doctorId = auth.doctorProfile?.id ?? '';
+                  final pendingCount = trProvider.pendingForDoctor(doctorId).length;
+                  
+                  return _QuickActionCard(
+                    icon: LucideIcons.hospital,
+                    label: 'Demandes',
+                    badge: pendingCount,
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFA8E6CF), Color(0xFF88D8B0)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const DoctorRequestsScreen()),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _QuickActionCard(
+                icon: LucideIcons.clipboard_list,
+                label: 'Dossiers Médicaux',
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF93C5FD), Color(0xFF60A5FA)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const DoctorRequestsScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const MedicalRecordScreen(isDoctorView: true),
+                    ),
                   );
                 },
-              );
-            },
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _QuickActionCard(
-            icon: LucideIcons.wallet,
-            label: 'Paiements',
-            gradient: const LinearGradient(
-              colors: [Color(0xFFFFD3A5), Color(0xFFFDB99B)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+              ),
             ),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const DoctorPaymentScreen()),
-              );
-            },
-          ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _QuickActionCard(
+                icon: LucideIcons.wallet,
+                label: 'Paiements',
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFFD3A5), Color(0xFFFDB99B)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const DoctorPaymentScreen()),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ],
     );

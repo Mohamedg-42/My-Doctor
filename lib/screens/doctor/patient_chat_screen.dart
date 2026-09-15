@@ -8,6 +8,8 @@ import '../../providers/auth_provider.dart';
 import '../../providers/treating_request_provider.dart';
 import '../../widgets/common/avatar_widget.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
+import '../patient/medical_record_screen.dart';
 
 /// Écran de chat fonctionnel côté médecin avec MessageProvider
 class PatientChatScreen extends StatefulWidget {
@@ -224,6 +226,26 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(LucideIcons.clipboard_list, color: AppColors.primary),
+            tooltip: 'Dossier Médical',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MedicalRecordScreen(
+                    patientName: '${widget.patient.firstName} ${widget.patient.lastName}',
+                    patientId: widget.patient.id,
+                    patientAvatar: widget.patient.avatarUrl,
+                    isDoctorView: true,
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 6),
+        ],
       ),
       body: Container(
         decoration: BoxDecoration(

@@ -20,6 +20,7 @@ import '../../widgets/common/avatar_widget.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import '../../widgets/doctor/refer_patient_dialog.dart';
 import 'patient_chat_screen.dart';
+import '../patient/medical_record_screen.dart';
 
 class DoctorRequestsScreen extends StatefulWidget {
   final VoidCallback? onBackToDashboard;
@@ -658,6 +659,23 @@ class _RequestCardState extends State<_RequestCard> {
                             label: 'Message',
                             color: AppColors.primary,
                             onTap: _openPatientChat),
+                        _ChannelChip(
+                            icon: LucideIcons.clipboard_list,
+                            label: 'Dossier',
+                            color: AppColors.brandNavy,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => MedicalRecordScreen(
+                                    patientName: widget.request.patientName,
+                                    patientId: widget.request.patientId,
+                                    patientAvatar: widget.request.patientAvatar,
+                                    isDoctorView: true,
+                                  ),
+                                ),
+                              );
+                            }),
                         const _ChannelChip(
                             icon: Icons.phone_rounded,
                             label: 'Appel',
@@ -673,6 +691,40 @@ class _RequestCardState extends State<_RequestCard> {
               ),
             ),
           ],
+
+          // ── Bouton Consultation Dossier Médical (pour toute demande) ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MedicalRecordScreen(
+                        patientName: widget.request.patientName,
+                        patientId: widget.request.patientId,
+                        patientAvatar: widget.request.patientAvatar,
+                        isDoctorView: true,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(LucideIcons.clipboard_list, size: 14),
+                label: const Text(
+                  'Consulter le Dossier Médical',
+                  style: TextStyle(fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.brandNavy,
+                  side: const BorderSide(color: AppColors.brandNavy),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                ),
+              ),
+            ),
+          ),
 
           // ── Boutons Accepter / Refuser (pending uniquement) ─
           if (isPending)
