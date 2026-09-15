@@ -1,69 +1,69 @@
 import 'package:flutter/material.dart';
 
-/// Design Tokens officiels selon les spécifications My Doctor
+/// Design Tokens officiels selon les spécifications My Doctor & Logo officiel
 class AppColors {
-  // ─── Couleurs de marque ───────────────────────────────────────────────────
-  static const Color brandBlue      = Color(0xFF2D9CDB); // Action principale, sélection active, navigation
-  static const Color brandTurquoise = Color(0xFF27AE60); // Succès, validation, état sain, confirmation
-  static const Color brandCoral     = Color(0xFFEB5757); // Urgence, erreur, suppression, critique
-  static const Color brandNavy      = Color(0xFF1A365D); // Titres, texte fort, contraste premium
+  // ─── Couleurs officielles fidèles au Logo My Doctor ──────────────────────────
+  static const Color logoBlue       = Color(0xFF0070D2); // Main bleue & "my" : boutons principaux, titres, liens actifs
+  static const Color logoTurquoise  = Color(0xFF00A896); // Main turquoise & "doctor" : accents, icônes secondaires, badges
+  static const Color logoCrossRed   = Color(0xFFEB5757); // Croix médicale centrale : symboles médicaux, urgences, alertes
 
-  // Couleurs dérivées du logo officiel
-  static const Color logoBlue       = Color(0xFF0070D2); // Main bleue supérieure & "my"
-  static const Color logoTurquoise  = Color(0xFF00A896); // Main turquoise & "doctor"
-  static const Color logoCrossRed   = Color(0xFFEB5757); // Croix médicale centrale
+  // ─── Couleurs de marque alignées sur le logo ────────────────────────────────
+  static const Color brandBlue      = logoBlue;          // Color(0xFF0070D2)
+  static const Color brandTurquoise = logoTurquoise;     // Color(0xFF00A896)
+  static const Color brandCoral     = logoCrossRed;      // Color(0xFFEB5757)
+  static const Color brandNavy      = Color(0xFF1E293B); // Gris foncé / Bleu foncé contrasté pour les titres
 
-  // ─── Neutres & Surfaces ───────────────────────────────────────────────────
-  static const Color surfaceApp     = Color(0xFFFDFCF8); // Fond général ivoire de l'application
-  static const Color surfaceSubtle  = Color(0xFFF7FAFC); // Champs, éléments secondaires, listes
-  static const Color surfaceCard    = Color(0xFFFFFFFF); // Cartes et surfaces élevées
-  static const Color borderSubtle   = Color(0xFFEDF2F7); // Bordures discrètes et séparateurs
+  // ─── Neutres & Surfaces ─────────────────────────────────────────────────────
+  static const Color surfaceApp     = Color(0xFFFFFFFF); // Blanc comme couleur principale de fond
+  static const Color surfaceSubtle  = Color(0xFFF8FAFC); // Gris très clair pour éléments secondaires et listes
+  static const Color surfaceCard    = Color(0xFFFFFFFF); // Cartes blanches
+  static const Color borderSubtle   = Color(0xFFE2E8F0); // Gris clair pour bordures et champs de saisie
 
-  // ─── Textes ───────────────────────────────────────────────────────────────
-  static const Color textPrimary    = Color(0xFF1A365D); // Titres, libellés importants
-  static const Color textSecondary  = Color(0xFF4A5568); // Paragraphes, descriptions
-  static const Color textMuted      = Color(0xFF718096); // Métadonnées, aides, états désactivés
-  static const Color textOnColor    = Color(0xFFFFFFFF); // Texte sur bouton ou surface colorée
-  static const Color textLight      = Color(0xFF718096); // Alias compatibilité
+  // ─── Textes (Gris foncé pour garantir une lisibilité optimale) ──────────────
+  static const Color textPrimary    = Color(0xFF1E293B); // Titres, libellés importants (gris foncé / bleu nuit)
+  static const Color textSecondary  = Color(0xFF475569); // Paragraphes, descriptions (gris moyen)
+  static const Color textMuted      = Color(0xFF94A3B8); // Métadonnées, aides, états désactivés (gris doux)
+  static const Color textOnColor    = Color(0xFFFFFFFF); // Texte blanc sur surface colorée
+  static const Color textLight      = textMuted;         // Alias compatibilité
 
-  // ─── États d'interface ────────────────────────────────────────────────────
-  static const Color successBg      = Color(0xFFE9F7EF); // Fond état succès
-  static const Color warningBg      = Color(0xFFFFF4E8); // Fond état alerte
-  static const Color errorBg        = Color(0xFFFFF0F0); // Fond état erreur
-  static const Color selectedBg     = Color(0xFFE7F3FB); // Fond état sélectionné
+  // ─── États d'interface ──────────────────────────────────────────────────────
+  static const Color successBg      = Color(0xFFE6F7F5); // Fond état succès turquoise très doux
+  static const Color warningBg      = Color(0xFFFFF7ED); // Fond état alerte ambre doux
+  static const Color errorBg        = Color(0xFFFEF2F2); // Fond état erreur rouge doux
+  static const Color selectedBg     = Color(0xFFEBF5FB); // Fond sélection bleu logo très doux
 
-  // ─── Rétrocompatibilité & Alias sémantiques ───────────────────────────────
-  static const Color primary        = brandBlue;
-  static const Color primaryDark    = brandNavy;
+  // ─── Rétrocompatibilité & Alias sémantiques ─────────────────────────────────
+  static const Color primary        = brandBlue;         // Bleu du logo
+  static const Color primaryDark    = Color(0xFF0056A3); // Bleu du logo profond
   static const Color primaryLight   = selectedBg;
-  static const Color primaryUltraLight = surfaceApp;
-  static const Color accent         = brandTurquoise;
-  static const Color accentBlue     = brandNavy;
+  static const Color primaryUltraLight = surfaceSubtle;
+  static const Color accent         = brandTurquoise;    // Turquoise du logo
+  static const Color accentBlue     = brandBlue;
   static const Color accentPink     = brandCoral;
   static const Color green          = brandTurquoise;
   static const Color yellow         = Color(0xFFFFB800);
 
   static const Color backgroundDark  = brandNavy;
-  static const Color backgroundLight = surfaceApp;
-  static const Color backgroundCard  = surfaceCard;
-  static const Color backgroundGrey  = borderSubtle;
+  static const Color backgroundLight = surfaceApp;       // Blanc
+  static const Color backgroundCard  = surfaceCard;      // Blanc
+  static const Color backgroundGrey  = borderSubtle;     // Gris clair
   static const Color cream           = surfaceSubtle;
 
-  static const Color success = brandTurquoise;
-  static const Color warning = Color(0xFFC05621);
-  static const Color error   = brandCoral;
-  static const Color info    = brandBlue;
+  static const Color success = brandTurquoise;           // Turquoise du logo
+  static const Color warning = Color(0xFFD97706);
+  static const Color error   = brandCoral;               // Rouge du logo (avec modération)
+  static const Color info    = brandBlue;                // Bleu du logo
   static const Color star    = Color(0xFFFFB800);
   static const Color callRed = brandCoral;
   static const Color online  = brandTurquoise;
   static const Color offline = textMuted;
   static const Color textWhite = textOnColor;
 
-  // ─── Gradients ────────────────────────────────────────────────────────────
+  // ─── Gradients harmonisés avec le logo ──────────────────────────────────────
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [brandBlue, Color(0xFF1B82BD)],
+    colors: [brandBlue, Color(0xFF0056A3)],
   );
 
   static const LinearGradient brandGradient = LinearGradient(
@@ -75,19 +75,19 @@ class AppColors {
   static const LinearGradient orangeGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [brandBlue, Color(0xFF1B82BD)],
+    colors: [brandBlue, Color(0xFF0056A3)],
   );
 
   static const LinearGradient darkGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [brandNavy, Color(0xFF2C4A7A)],
+    colors: [brandNavy, Color(0xFF0F172A)],
   );
 
   static const LinearGradient backgroundGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [surfaceApp, surfaceCard],
+    colors: [surfaceApp, surfaceSubtle],
   );
 
   static const LinearGradient cardGradient = LinearGradient(
@@ -99,13 +99,13 @@ class AppColors {
   static const LinearGradient blueGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [brandBlue, brandNavy],
+    colors: [brandBlue, Color(0xFF0056A3)],
   );
 
   static const LinearGradient greenGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [brandTurquoise, Color(0xFF219653)],
+    colors: [brandTurquoise, Color(0xFF00897B)],
   );
 }
 
@@ -242,36 +242,36 @@ class AppTheme {
       useMaterial3: true,
       fontFamily: AppTextStyles.fontFamily,
       textTheme: ThemeData.light().textTheme.apply(fontFamily: AppTextStyles.fontFamily),
-      scaffoldBackgroundColor: AppColors.surfaceApp,
+      scaffoldBackgroundColor: Colors.white,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.brandBlue,
+        seedColor: AppColors.logoBlue,
         brightness: Brightness.light,
-        primary: AppColors.brandBlue,
-        secondary: AppColors.brandTurquoise,
-        surface: AppColors.surfaceCard,
-        error: AppColors.brandCoral,
+        primary: AppColors.logoBlue,
+        secondary: AppColors.logoTurquoise,
+        surface: Colors.white,
+        error: AppColors.logoCrossRed,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.surfaceCard,
+        backgroundColor: Colors.white,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         centerTitle: true,
         titleTextStyle: AppTextStyles.h3,
-        iconTheme: IconThemeData(color: AppColors.textPrimary),
+        iconTheme: IconThemeData(color: AppColors.logoBlue),
       ),
       cardTheme: CardThemeData(
-        color: AppColors.surfaceCard,
+        color: Colors.white,
         elevation: 0,
         shape: RoundedRectangleBorder(
           side: const BorderSide(color: AppColors.borderSubtle, width: 1),
           borderRadius: BorderRadius.circular(20), // --radius-card
         ),
-        shadowColor: AppColors.brandNavy.withValues(alpha: 0.06),
+        shadowColor: AppColors.brandBlue.withValues(alpha: 0.06),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.brandBlue,
-          foregroundColor: AppColors.textOnColor,
+          backgroundColor: AppColors.logoBlue,
+          foregroundColor: Colors.white,
           elevation: 0,
           minimumSize: const Size(double.infinity, 52), // Hauteur min 52px spécifiée
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -283,27 +283,28 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.brandBlue,
-          side: const BorderSide(color: AppColors.brandBlue, width: 1.5),
+          backgroundColor: Colors.white,
+          foregroundColor: AppColors.logoBlue,
+          side: const BorderSide(color: AppColors.logoBlue, width: 1.5),
           minimumSize: const Size(double.infinity, 52),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: AppTextStyles.button.copyWith(color: AppColors.brandBlue),
+          textStyle: AppTextStyles.button.copyWith(color: AppColors.logoBlue),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.brandBlue,
+          foregroundColor: AppColors.logoBlue,
           textStyle: AppTextStyles.label.copyWith(
-            color: AppColors.brandBlue,
+            color: AppColors.logoBlue,
           ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surfaceSubtle,
+        fillColor: Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.borderSubtle, width: 1),
@@ -314,23 +315,23 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.brandBlue, width: 2),
+          borderSide: const BorderSide(color: AppColors.logoBlue, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.brandCoral, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.logoCrossRed, width: 1.5),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.brandCoral, width: 2),
+          borderSide: const BorderSide(color: AppColors.logoCrossRed, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         hintStyle: AppTextStyles.body.copyWith(color: AppColors.textMuted),
         labelStyle: AppTextStyles.label.copyWith(color: AppColors.textSecondary),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: AppColors.surfaceCard,
-        selectedItemColor: AppColors.brandBlue,
+        backgroundColor: Colors.white,
+        selectedItemColor: AppColors.logoBlue,
         unselectedItemColor: AppColors.textMuted,
         type: BottomNavigationBarType.fixed,
         elevation: 8,

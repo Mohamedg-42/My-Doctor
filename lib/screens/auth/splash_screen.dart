@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -34,8 +35,12 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _navigate() async {
-    // Affiche la page de chargement fidèle à la maquette
-    await Future.delayed(const Duration(milliseconds: 1400));
+    // Sur le Web le loader HTML a déjà patienté, transition quasi-instantanée
+    if (kIsWeb) {
+      await Future.delayed(const Duration(milliseconds: 80));
+    } else {
+      await Future.delayed(const Duration(milliseconds: 1400));
+    }
     if (!mounted) return;
 
     final auth = context.read<AuthProvider>();

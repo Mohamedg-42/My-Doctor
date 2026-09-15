@@ -8,6 +8,7 @@ import '../../models/user_model.dart';
 import '../../screens/patient/patient_home_screen.dart';
 import '../../screens/doctor/doctor_home_screen.dart';
 import '../../screens/admin/admin_dashboard_screen.dart';
+import '../../widgets/common/app_loading_screen.dart';
 
 /// Empêche l'accès aux pages de connexion, d'inscription et d'accueil public
 /// dès qu'un utilisateur est authentifié.
@@ -34,7 +35,7 @@ class GuestOnlyRoute extends StatelessWidget {
 
     // ── En cours de chargement initial : zéro écran de chargement clignotant
     if (auth.state == AuthState.loading) {
-      return const SizedBox.shrink();
+      return const AppLoadingScreen();
     }
 
     // ── Non connecté : accès autorisé à la page de connexion / bienvenue
@@ -58,7 +59,7 @@ class AuthenticatedRoute extends StatelessWidget {
     final auth = context.watch<AuthProvider>();
 
     if (auth.state == AuthState.loading) {
-      return const SizedBox.shrink();
+      return const AppLoadingScreen();
     }
 
     if (!auth.isAuthenticated || auth.currentUser == null) {
@@ -70,7 +71,7 @@ class AuthenticatedRoute extends StatelessWidget {
           Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
         }
       });
-      return const SizedBox.shrink();
+      return const AppLoadingScreen();
     }
 
     // Compte suspendu ou inactif

@@ -488,8 +488,9 @@ class _DashboardTab extends StatelessWidget {
                                       icon: const Icon(LucideIcons.user_round_cog, size: 14),
                                       label: const Text('Référer', style: AppTextStyles.buttonSmall),
                                       style: OutlinedButton.styleFrom(
-                                        foregroundColor: const Color(0xFF8B5CF6),
-                                        side: const BorderSide(color: Color(0xFF8B5CF6)),
+                                        backgroundColor: Colors.white,
+                                        foregroundColor: AppColors.logoBlue,
+                                        side: const BorderSide(color: AppColors.logoBlue, width: 1.5),
                                         padding: const EdgeInsets.symmetric(vertical: 10),
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                       ),

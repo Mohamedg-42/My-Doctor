@@ -255,8 +255,9 @@ class _PaymentScreenState extends State<PaymentScreen>
                   style: TextStyle(fontFamily: 'Poppins', fontSize: 12),
                 ),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF6C3CE1),
-                  side: const BorderSide(color: Color(0xFF6C3CE1)),
+                  backgroundColor: Colors.white,
+                  foregroundColor: AppColors.logoBlue,
+                  side: const BorderSide(color: AppColors.logoBlue, width: 1.5),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
               ),

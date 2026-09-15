@@ -717,8 +717,9 @@ class _RequestCardState extends State<_RequestCard> {
                   style: TextStyle(fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w600),
                 ),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF0F172A),
-                  side: const BorderSide(color: Color(0xFF0F172A), width: 1.2),
+                  backgroundColor: Colors.white,
+                  foregroundColor: AppColors.logoBlue,
+                  side: const BorderSide(color: AppColors.logoBlue, width: 1.5),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   padding: const EdgeInsets.symmetric(vertical: 8),
                 ),
@@ -744,18 +745,20 @@ class _RequestCardState extends State<_RequestCard> {
                           child: OutlinedButton.icon(
                             onPressed: _refer,
                             icon: const Icon(LucideIcons.user_round_cog,
-                                size: 16, color: Color(0xFF8B5CF6)),
+                                size: 16, color: AppColors.logoBlue),
                             label: const Text(
                               'Référer',
                               style: TextStyle(
                                 fontFamily: 'Poppins',
                                 fontSize: 13,
-                                color: Color(0xFF8B5CF6),
+                                color: AppColors.logoBlue,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Color(0xFF8B5CF6)),
+                              backgroundColor: Colors.white,
+                              foregroundColor: AppColors.logoBlue,
+                              side: const BorderSide(color: AppColors.logoBlue, width: 1.5),
                               padding:
                                   const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(

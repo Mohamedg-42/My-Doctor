@@ -1,4 +1,4 @@
-// lib/core/routing/route_persistence_service.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../providers/auth_provider.dart';
@@ -78,7 +78,7 @@ class RoutePersistenceService {
   /// Détermine la route initiale sur laquelle rester après un rafraîchissement (F5)
   static String getInitialRoute(AuthProvider auth) {
     if (!auth.isAuthenticated || auth.currentUser == null) {
-      return '/';
+      return kIsWeb ? '/welcome' : '/';
     }
 
     final role = auth.currentUser?.role;

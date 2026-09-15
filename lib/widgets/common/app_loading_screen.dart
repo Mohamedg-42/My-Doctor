@@ -38,12 +38,15 @@ class AppLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // Contenu central : Logo + Spinner + Texte
-        Center(
+    return Center(
+      child: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Logo officiel My Doctor
               Image.asset(
@@ -51,46 +54,186 @@ class AppLoadingView extends StatelessWidget {
                 width: 220,
                 fit: BoxFit.contain,
               ),
-              const SizedBox(height: 52),
+              const SizedBox(height: 40),
 
-              // Spinner rotatif à pétales rayonnants (couleur azur #00A0E9)
-              const PetalSpinner(
-                size: 46,
-                color: Color(0xFF009EE2),
+              // Barre de chargement onde cardiaque (ECG) turquoise
+              const EcgLoadingBar(
+                width: 220,
+                height: 46,
+                strokeWidth: 3.5,
+                color: AppColors.brandTurquoise,
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 20),
 
               // Libellé "Chargement..."
               Text(
                 message,
+                textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF64748B),
-                  letterSpacing: 0.1,
+                  color: AppColors.textSecondary,
+                  letterSpacing: 0.2,
                 ),
               ),
             ],
           ),
         ),
-
-        // Ligne de pouls / pulsation cardiaque (ECG) en bas
-        const Positioned(
-          left: 0,
-          right: 0,
-          bottom: 28,
-          child: Center(
-            child: HeartbeatLine(
-              width: 110,
-              height: 24,
-              color: Color(0xFF00A896),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
+}
+
+/// Barre de chargement animée en onde cardiaque (ECG) My Doctor
+class EcgLoadingBar extends StatefulWidget {
+  final double width;
+  final double height;
+  final double strokeWidth;
+  final Color color;
+  final Duration duration;
+
+  const EcgLoadingBar({
+    super.key,
+    this.width = 220,
+    this.height = 46,
+    this.strokeWidth = 3.5,
+    this.color = AppColors.brandTurquoise,
+    this.duration = const Duration(milliseconds: 1600),
+  });
+
+  @override
+  State<EcgLoadingBar> createState() => _EcgLoadingBarState();
+}
+
+class _EcgLoadingBarState extends State<EcgLoadingBar>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _animCtrl = AnimationController(
+      vsync: this,
+      duration: widget.duration,
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _animCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: widget.width),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: SizedBox(
+          width: widget.width,
+          height: widget.height,
+          child: AnimatedBuilder(
+            animation: _animCtrl,
+            builder: (_, __) {
+              return CustomPaint(
+                size: Size(widget.width, widget.height),
+                painter: _EcgLoadingPainter(
+                  progress: _animCtrl.value,
+                  color: widget.color,
+                  strokeWidth: widget.strokeWidth,
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EcgLoadingPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+  final double strokeWidth;
+
+  _EcgLoadingPainter({
+    required this.progress,
+    required this.color,
+    required this.strokeWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final midY = h / 2;
+
+    // Tracé de l'onde ECG fidèle à l'image de référence
+    final fullPath = Path();
+    fullPath.moveTo(0, midY);
+    fullPath.lineTo(w * 0.39, midY);
+    fullPath.lineTo(w * 0.42, midY + (h * 0.14)); // Creux Q
+    fullPath.lineTo(w * 0.47, midY - (h * 0.41)); // Pic R élevé
+    fullPath.lineTo(w * 0.52, midY + (h * 0.41)); // Creux S profond
+    fullPath.lineTo(w * 0.56, midY - (h * 0.18)); // Onde T de rappel
+    fullPath.lineTo(w * 0.595, midY); // Retour baseline
+    fullPath.lineTo(w, midY); // Ligne droite de fin
+
+    // 1. Ligne de fond estompée (track)
+    final trackPaint = Paint()
+      ..color = color.withValues(alpha: 0.20)
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    canvas.drawPath(fullPath, trackPaint);
+
+    // 2. Onde active animée (pulse beam)
+    final pulsePaint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    for (final metric in fullPath.computeMetrics()) {
+      final totalLen = metric.length;
+      final pulseLen = totalLen * 0.38;
+      final currentHead = progress * totalLen;
+      final currentTail = currentHead - pulseLen;
+
+      if (currentTail >= 0) {
+        // Faisceau principal contenu dans le tracé
+        final segment = metric.extractPath(currentTail, currentHead);
+        canvas.drawPath(segment, pulsePaint);
+      } else {
+        // Enroulement continu sans rupture : la tête avance à gauche pendant que la queue termine à droite
+        final headSegment = metric.extractPath(0.0, currentHead);
+        canvas.drawPath(headSegment, pulsePaint);
+
+        final tailSegment = metric.extractPath(totalLen + currentTail, totalLen);
+        canvas.drawPath(tailSegment, pulsePaint);
+      }
+
+      // Halo lumineux continu à la tête de pulsation
+      final tangent = metric.getTangentForOffset(currentHead);
+      if (tangent != null) {
+        final glowPaint = Paint()
+          ..color = color.withValues(alpha: 0.5)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.8);
+        canvas.drawCircle(tangent.position, strokeWidth * 1.15, glowPaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _EcgLoadingPainter oldDelegate) =>
+      oldDelegate.progress != progress ||
+      oldDelegate.color != color ||
+      oldDelegate.strokeWidth != strokeWidth;
 }
 
 /// Spinner rotatif à 12 pétales arrondies avec dégradé d'opacité dynamique

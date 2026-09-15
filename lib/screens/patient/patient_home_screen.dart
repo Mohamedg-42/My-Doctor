@@ -3326,9 +3326,10 @@ class _PharmaciesDeGardeModalState extends State<_PharmaciesDeGardeModal> {
                                         size: 15),
                                     label: const Text('Itinéraire'),
                                     style: OutlinedButton.styleFrom(
-                                      foregroundColor: AppColors.textPrimary,
+                                      backgroundColor: Colors.white,
+                                      foregroundColor: AppColors.logoBlue,
                                       side: const BorderSide(
-                                          color: AppColors.backgroundGrey),
+                                          color: AppColors.logoBlue, width: 1.5),
                                       shape: RoundedRectangleBorder(
                                         borderRadius:
                                             BorderRadius.circular(10),

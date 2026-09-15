@@ -132,8 +132,9 @@ class DoctorAptList extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF0F172A),
-                    side: const BorderSide(color: Color(0xFF0F172A), width: 1.2),
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppColors.logoBlue,
+                    side: const BorderSide(color: AppColors.logoBlue, width: 1.5),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     padding: const EdgeInsets.symmetric(vertical: 8),
                   ),
@@ -154,7 +155,7 @@ class DoctorAptList extends StatelessWidget {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           title: const Row(
                             children: [
-                              Icon(LucideIcons.share_2, color: Color(0xFF8B5CF6), size: 20),
+                              Icon(LucideIcons.share_2, color: AppColors.logoBlue, size: 20),
                               SizedBox(width: 8),
                               Text('Référer le rendez-vous', style: TextStyle(fontFamily: 'Poppins', fontSize: 16, fontWeight: FontWeight.bold)),
                             ],
@@ -170,7 +171,7 @@ class DoctorAptList extends StatelessWidget {
                             ),
                             ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF8B5CF6),
+                                backgroundColor: AppColors.logoBlue,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
                               onPressed: () => Navigator.pop(ctx, true),
@@ -185,7 +186,7 @@ class DoctorAptList extends StatelessWidget {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: const Text('Le rendez-vous a été réorienté.'),
-                              backgroundColor: const Color(0xFF8B5CF6),
+                              backgroundColor: AppColors.logoBlue,
                               behavior: SnackBarBehavior.floating,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
@@ -196,8 +197,9 @@ class DoctorAptList extends StatelessWidget {
                     icon: const Icon(LucideIcons.user_round_cog, size: 14),
                     label: const Text('Référer'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF8B5CF6),
-                      side: const BorderSide(color: Color(0xFF8B5CF6)),
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.logoBlue,
+                      side: const BorderSide(color: AppColors.logoBlue, width: 1.5),
                     ),
                   ),
                 ),

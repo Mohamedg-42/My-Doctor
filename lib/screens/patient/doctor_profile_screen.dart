@@ -753,6 +753,7 @@ class _AboutTab extends StatelessWidget {
                 icon: const Icon(Icons.family_restroom_rounded, size: 18),
                 label: const Text('Demander comme médecin traitant\n(500 FCFA)'),
                 style: OutlinedButton.styleFrom(
+                  backgroundColor: Colors.white,
                   foregroundColor: AppColors.primary,
                   side: const BorderSide(color: AppColors.primary, width: 1.5),
                   padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
@@ -1291,6 +1292,9 @@ class _ConfirmBookingSheet extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: () => Navigator.pop(context),
                   style: OutlinedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary, width: 1.5),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),

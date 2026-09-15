@@ -71,42 +71,46 @@
       margin-bottom: 48px;
     }
 
-    /* Spinner rotatif à 12 pétales bleu azur #009EE2 */
-    .petal-spinner {
-      position: relative;
-      width: 44px;
-      height: 44px;
-      margin-bottom: 18px;
+    /* Barre de chargement animée en onde cardiaque (ECG) */
+    .ecg-loader-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 22px;
     }
 
-    .petal-spinner div {
-      position: absolute;
-      left: 20px;
-      top: 3px;
-      width: 4px;
-      height: 11px;
-      background: #009EE2;
-      border-radius: 4px;
-      transform-origin: 2px 19px;
-      animation: petal-fade 1s linear infinite;
+    .ecg-loader-svg {
+      width: 220px;
+      max-width: 80vw;
+      height: 46px;
+      overflow: visible;
     }
 
-    .petal-spinner div:nth-child(1)  { transform: rotate(0deg); animation-delay: -1s; }
-    .petal-spinner div:nth-child(2)  { transform: rotate(30deg); animation-delay: -0.916s; }
-    .petal-spinner div:nth-child(3)  { transform: rotate(60deg); animation-delay: -0.833s; }
-    .petal-spinner div:nth-child(4)  { transform: rotate(90deg); animation-delay: -0.75s; }
-    .petal-spinner div:nth-child(5)  { transform: rotate(120deg); animation-delay: -0.666s; }
-    .petal-spinner div:nth-child(6)  { transform: rotate(150deg); animation-delay: -0.583s; }
-    .petal-spinner div:nth-child(7)  { transform: rotate(180deg); animation-delay: -0.5s; }
-    .petal-spinner div:nth-child(8)  { transform: rotate(210deg); animation-delay: -0.416s; }
-    .petal-spinner div:nth-child(9)  { transform: rotate(240deg); animation-delay: -0.333s; }
-    .petal-spinner div:nth-child(10) { transform: rotate(270deg); animation-delay: -0.25s; }
-    .petal-spinner div:nth-child(11) { transform: rotate(300deg); animation-delay: -0.166s; }
-    .petal-spinner div:nth-child(12) { transform: rotate(330deg); animation-delay: -0.083s; }
+    .ecg-track {
+      stroke: rgba(0, 168, 150, 0.20);
+      stroke-width: 3.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
 
-    @keyframes petal-fade {
-      from { opacity: 1; }
-      to { opacity: 0.15; }
+    .ecg-pulse {
+      stroke: #00A896;
+      stroke-width: 3.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-dasharray: 100 164;
+      stroke-dashoffset: 264;
+      animation: ecg-continuous 1.5s linear infinite;
+      filter: drop-shadow(0 0 3px rgba(0, 168, 150, 0.65));
+    }
+
+    @keyframes ecg-continuous {
+      0% {
+        stroke-dashoffset: 264;
+      }
+      100% {
+        stroke-dashoffset: 0;
+      }
     }
 
     .loading-text {
@@ -114,14 +118,6 @@
       font-weight: 500;
       color: #64748B;
       letter-spacing: 0.2px;
-    }
-
-    /* Ligne de rythme cardiaque (ECG) turquoise */
-    .heartbeat-container {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      margin-bottom: 24px;
     }
   </style>
 </head>
@@ -131,18 +127,15 @@
     <div class="loader-top-spacer"></div>
     <div class="loader-content">
       <img class="logo-img" src="logo.png" alt="My Doctor Logo">
-      <div class="petal-spinner">
-        <div></div><div></div><div></div><div></div>
-        <div></div><div></div><div></div><div></div>
-        <div></div><div></div><div></div><div></div>
+      <div class="ecg-loader-container">
+        <svg class="ecg-loader-svg" width="220" height="46" viewBox="0 0 200 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path class="ecg-track" pathLength="264" d="M0 22 H78 L84 25 L94 4 L104 40 L112 14 L119 22 H200"/>
+          <path class="ecg-pulse" pathLength="264" d="M0 22 H78 L84 25 L94 4 L104 40 L112 14 L119 22 H200"/>
+        </svg>
       </div>
       <div class="loading-text">Chargement...</div>
     </div>
-    <div class="heartbeat-container">
-      <svg width="120" height="24" viewBox="0 0 120 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M0 12 H48 L52 15.5 L58 1.5 L63 22.5 L67 8.5 L71 12 H120" stroke="#00A896" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </div>
+    <div class="loader-top-spacer"></div>
   </div>
 
   <script>
@@ -156,16 +149,20 @@
         loader.style.pointerEvents = 'none';
         setTimeout(function () {
           if (loader && loader.parentNode) loader.parentNode.removeChild(loader);
-        }, 350);
+        }, 300);
       }
     }
 
-    // Le loader web s'efface en douceur dès que Flutter a rendu ses premiers pixels
-    window.addEventListener('flutter-first-frame', hideLoader);
+    // Accessible globalement par Flutter et flutter_bootstrap.js
+    window.hideLoader = hideLoader;
 
-    // Fallback de sécurité si l'événement n'est pas supporté par le navigateur
+    // Écoute de l'événement premier frame
+    window.addEventListener('flutter-first-frame', hideLoader);
+    window.addEventListener('flutter-initialized', hideLoader);
+
+    // Fallback de sécurité rapide si l'environnement bloque les événements
     window.addEventListener('load', function () {
-      setTimeout(hideLoader, 5000);
+      setTimeout(hideLoader, 2500);
     });
   </script>
   <script src="flutter_bootstrap.js" async></script>

@@ -915,7 +915,8 @@ class _InAppItineraryScreenState extends State<InAppItineraryScreen>
                           child: OutlinedButton(
                             onPressed: _callDestination,
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: AppColors.brandTurquoise),
+                              backgroundColor: Colors.white,
+                              side: const BorderSide(color: AppColors.brandTurquoise, width: 1.5),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -934,7 +935,8 @@ class _InAppItineraryScreenState extends State<InAppItineraryScreen>
                         child: OutlinedButton(
                           onPressed: _openExternalMaps,
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: AppColors.borderSubtle),
+                            backgroundColor: Colors.white,
+                            side: const BorderSide(color: AppColors.borderSubtle, width: 1.5),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),

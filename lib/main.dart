@@ -24,6 +24,7 @@ import 'widgets/common/app_loading_screen.dart';
 import 'screens/auth/welcome_screen.dart';
 import 'screens/auth/welcome_screen_original.dart';
 import 'screens/auth/choose_register_screen.dart';
+import 'screens/auth/login_screen.dart';
 import 'screens/auth/patient_login_screen.dart';
 import 'screens/auth/doctor_login_screen.dart';
 import 'screens/auth/patient_register_screen.dart';
@@ -100,7 +101,9 @@ void main() async {
   runApp(AlloDocteurApp(
     authProvider: authProvider,
     treatingRequestProvider: treatingRequestProvider,
-    initialRoute: '/splash',
+    initialRoute: kIsWeb
+        ? RoutePersistenceService.getInitialRoute(authProvider)
+        : null,
   ));
 }
 
@@ -175,10 +178,12 @@ class AlloDocteurApp extends StatelessWidget {
             routes: {
               '/': (_) => const SplashScreen(),
               '/loading': (_) => const AppLoadingScreen(),
-              '/welcome': (_) =>
-                  const GuestOnlyRoute(child: WelcomeScreenOriginal()),
+              '/welcome': (_) => const LoginScreen(),
+              '/welcome/profile-select': (_) => const LoginScreen(),
               '/splash': (_) => const SplashScreen(),
               '/cover': (_) => const GuestOnlyRoute(child: CoverScreen()),
+              '/login': (_) => const LoginScreen(),
+              '/auth/login': (_) => const LoginScreen(),
               '/auth/choose-register': (_) =>
                   const GuestOnlyRoute(child: ChooseRegisterScreen()),
               '/auth/patient/login': (_) =>

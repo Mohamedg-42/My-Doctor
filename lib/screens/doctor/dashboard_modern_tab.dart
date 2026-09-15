@@ -31,7 +31,7 @@ class DashboardModernTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FD), // Fond off-white doux
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -97,13 +97,13 @@ class DashboardModernTab extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     'Bienvenue !',
                     style: TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
-                      color: Colors.grey[600],
+                      color: AppColors.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -113,7 +113,7 @@ class DashboardModernTab extends StatelessWidget {
                       fontFamily: 'Poppins',
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF1A1F36),
+                      color: AppColors.textPrimary,
                     ),
                   ),
                 ],
@@ -139,6 +139,10 @@ class DashboardModernTab extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.borderSubtle,
+              width: 1,
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.04),
@@ -164,7 +168,7 @@ class DashboardModernTab extends StatelessWidget {
                     child: Icon(
                       LucideIcons.bell,
                       size: 20,
-                      color: Color(0xFF1A1F36),
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   if (unreadCount > 0)
@@ -174,7 +178,7 @@ class DashboardModernTab extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEF4444), // Rouge vif
+                          color: AppColors.logoCrossRed, // Rouge vif
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: Colors.white, width: 1.5),
                         ),
@@ -208,14 +212,14 @@ class DashboardModernTab extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 140),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF4FACFE), Color(0xFF00F2FE)],
+          colors: [AppColors.logoBlue, AppColors.logoTurquoise],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF4FACFE).withValues(alpha: 0.3),
+            color: AppColors.logoBlue.withValues(alpha: 0.25),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -272,7 +276,7 @@ class DashboardModernTab extends StatelessWidget {
                             fontFamily: 'Poppins',
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF4FACFE),
+                            color: AppColors.logoBlue,
                           ),
                         ),
                       ),
@@ -311,7 +315,7 @@ class DashboardModernTab extends StatelessWidget {
         fontFamily: 'Poppins',
         fontSize: 18,
         fontWeight: FontWeight.w700,
-        color: Color(0xFF1A1F36),
+        color: AppColors.textPrimary,
       ),
     );
   }
@@ -327,7 +331,7 @@ class DashboardModernTab extends StatelessWidget {
                 icon: LucideIcons.calendar_check,
                 label: 'Rendez-vous',
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFE0BBE4), Color(0xFFD5AAD8)],
+                  colors: [AppColors.logoBlue, Color(0xFF0056A3)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -360,7 +364,7 @@ class DashboardModernTab extends StatelessWidget {
                     label: 'Demandes',
                     badge: pendingCount,
                     gradient: const LinearGradient(
-                      colors: [Color(0xFFA8E6CF), Color(0xFF88D8B0)],
+                      colors: [AppColors.logoTurquoise, Color(0xFF00897B)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -384,7 +388,7 @@ class DashboardModernTab extends StatelessWidget {
                 icon: LucideIcons.clipboard_list,
                 label: 'Dossiers Médicaux',
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+                  colors: [Color(0xFF0070D2), Color(0xFF00A896)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -404,7 +408,7 @@ class DashboardModernTab extends StatelessWidget {
                 icon: LucideIcons.wallet,
                 label: 'Paiements',
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFFFD3A5), Color(0xFFFDB99B)],
+                  colors: [Color(0xFF1E293B), Color(0xFF334155)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -436,7 +440,7 @@ class DashboardModernTab extends StatelessWidget {
                 value: '${todayAppointments.length}',
                 label: 'Rendez-vous',
                 icon: LucideIcons.calendar_days,
-                color: const Color(0xFF667EEA),
+                color: AppColors.logoBlue,
                 onTap: () {
                   if (onNavigateToAppointments != null) {
                     onNavigateToAppointments!();
@@ -459,7 +463,7 @@ class DashboardModernTab extends StatelessWidget {
                 value: '$confirmedToday',
                 label: 'Confirmés',
                 icon: LucideIcons.circle_check,
-                color: const Color(0xFF48BB78),
+                color: AppColors.logoTurquoise,
                 onTap: () {
                   if (onNavigateToAppointments != null) {
                     onNavigateToAppointments!();
@@ -515,7 +519,7 @@ class DashboardModernTab extends StatelessWidget {
                 }
               },
               gradient: const LinearGradient(
-                colors: [Color(0xFFF093FB), Color(0xFFF5576C)],
+                colors: [AppColors.logoBlue, Color(0xFF0056A3)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -527,7 +531,7 @@ class DashboardModernTab extends StatelessWidget {
               subtitle: 'Nouveaux messages',
               icon: LucideIcons.message_square,
               gradient: const LinearGradient(
-                colors: [Color(0xFF4FACFE), Color(0xFF00F2FE)],
+                colors: [AppColors.logoTurquoise, Color(0xFF00897B)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -539,7 +543,7 @@ class DashboardModernTab extends StatelessWidget {
               subtitle: 'Ce mois-ci',
               icon: LucideIcons.trending_up,
               gradient: const LinearGradient(
-                colors: [Color(0xFFFAD961), Color(0xFFF76B1C)],
+                colors: [Color(0xFF1E293B), Color(0xFF334155)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -615,7 +619,7 @@ class DashboardModernTab extends StatelessWidget {
                     fontFamily: 'Poppins',
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1A1F36),
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 2),
