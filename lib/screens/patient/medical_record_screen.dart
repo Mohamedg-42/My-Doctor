@@ -56,13 +56,31 @@ class _MedicalRecordScreenState extends State<MedicalRecordScreen> with SingleTi
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: AppBar(
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(LucideIcons.arrow_left, color: Colors.white, size: 20),
+          ),
+          tooltip: 'Retour',
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
+        iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
           title,
-          style: const TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600, fontSize: 16),
+          style: const TextStyle(
+            fontFamily: 'Poppins',
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+            color: Colors.white,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        backgroundColor: widget.isDoctorView ? AppColors.brandNavy : AppColors.primary,
+        backgroundColor: widget.isDoctorView ? const Color(0xFF0F172A) : AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
@@ -71,9 +89,9 @@ class _MedicalRecordScreenState extends State<MedicalRecordScreen> with SingleTi
               margin: const EdgeInsets.only(right: 12),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.brandTurquoise.withValues(alpha: 0.2),
+                color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.brandTurquoise),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
               ),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
@@ -96,6 +114,7 @@ class _MedicalRecordScreenState extends State<MedicalRecordScreen> with SingleTi
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
+          indicatorWeight: 3,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           isScrollable: true,
@@ -131,7 +150,7 @@ class _MedicalRecordScreenState extends State<MedicalRecordScreen> with SingleTi
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddRecordDialog(context),
-        backgroundColor: widget.isDoctorView ? AppColors.brandNavy : AppColors.primary,
+        backgroundColor: widget.isDoctorView ? const Color(0xFF0F172A) : AppColors.primary,
         icon: const Icon(Icons.add_rounded, color: Colors.white),
         label: Text(
           widget.isDoctorView ? 'Ajouter une note' : 'Ajouter',
@@ -366,7 +385,7 @@ class _MedicalRecordScreenState extends State<MedicalRecordScreen> with SingleTi
             icon: const Icon(Icons.check, size: 16),
             label: const Text('Délivrer'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
+              backgroundColor: const Color(0xFF0F172A),
               foregroundColor: Colors.white,
             ),
           ),
@@ -638,7 +657,7 @@ class _OrdonnancesTab extends StatelessWidget {
                 style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w700, color: Colors.white),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.brandBlue,
+                backgroundColor: const Color(0xFF0F172A),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),

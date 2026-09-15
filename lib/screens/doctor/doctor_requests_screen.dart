@@ -662,7 +662,7 @@ class _RequestCardState extends State<_RequestCard> {
                         _ChannelChip(
                             icon: LucideIcons.clipboard_list,
                             label: 'Dossier',
-                            color: AppColors.brandNavy,
+                            color: const Color(0xFF0F172A),
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -717,8 +717,8 @@ class _RequestCardState extends State<_RequestCard> {
                   style: TextStyle(fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w600),
                 ),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.brandNavy,
-                  side: const BorderSide(color: AppColors.brandNavy),
+                  foregroundColor: const Color(0xFF0F172A),
+                  side: const BorderSide(color: Color(0xFF0F172A), width: 1.2),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   padding: const EdgeInsets.symmetric(vertical: 8),
                 ),

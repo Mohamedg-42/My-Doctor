@@ -347,7 +347,7 @@ class DashboardModernTab extends StatelessWidget {
                 icon: LucideIcons.clipboard_list,
                 label: 'Dossiers Médicaux',
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF93C5FD), Color(0xFF60A5FA)],
+                  colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -472,7 +472,7 @@ class DashboardModernTab extends StatelessWidget {
                     doctorId: docId,
                     currentCapacity: currentCap,
                   );
-                  if (updated == true) {
+                  if (updated != null) {
                     await auth.refreshCurrentUser();
                   }
                 }
