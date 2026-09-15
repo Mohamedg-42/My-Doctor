@@ -13,6 +13,7 @@ import '../../providers/patient_provider.dart';
 import '../../providers/treating_request_provider.dart';
 import '../../widgets/common/avatar_widget.dart';
 import '../../widgets/common/health_id_card_widget.dart';
+import 'in_app_itinerary_screen.dart';
 
 class DoctorProfileScreen extends StatefulWidget {
   final DoctorModel doctor;
@@ -360,22 +361,23 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen>
   }
 
   // ── Localisation Carte ──
-  void _openMap(DoctorModel doctor) async {
-    final query = Uri.encodeComponent('${doctor.address ?? 'Abidjan'}, ${doctor.city ?? 'Côte d\'Ivoire'}');
-    final googleUrl = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
-    if (await canLaunchUrl(googleUrl)) {
-      await launchUrl(googleUrl, mode: LaunchMode.externalApplication);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Cabinet médical : ${doctor.address ?? doctor.city ?? 'Abidjan'}'),
-            backgroundColor: AppColors.primary,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
+  void _openMap(DoctorModel doctor) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => InAppItineraryScreen(
+          destinationTitle: 'Dr. ${doctor.firstName} ${doctor.lastName}',
+          destinationSubtitle: doctor.specialty,
+          destinationAddress: doctor.address != null && doctor.address!.isNotEmpty
+              ? '${doctor.address!}, ${doctor.city ?? 'Abidjan'}'
+              : 'Cabinet médical, ${doctor.city ?? 'Abidjan'}',
+          destinationLatitude: doctor.latitude,
+          destinationLongitude: doctor.longitude,
+          destinationPhone: doctor.phone,
+          destinationCategory: 'Cabinet Médical',
+        ),
+      ),
+    );
   }
 
   // ── Message d'accès refusé ────────────────────────────────────────────────

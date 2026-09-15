@@ -40,6 +40,7 @@ import '../../core/routing/route_persistence_service.dart';
 import '../../features/pharmacie/presentation/screens/pharmacie_garde_map_screen.dart';
 import '../../features/pharmacie/data/services/pharmacie_location_service.dart';
 import '../../features/pharmacie/data/models/pharmacie_model.dart';
+import 'in_app_itinerary_screen.dart';
 
 class PatientHomeScreen extends StatefulWidget {
   const PatientHomeScreen({super.key});
@@ -2375,7 +2376,7 @@ class _InfoGrid extends StatelessWidget {
       if (user?.commune != null)
         _InfoItem('Commune', user!.commune!, LucideIcons.map_pin),
       if (user?.city != null)
-        _InfoItem('Ville', user!.city!, LucideIcons.building_2),
+        _InfoItem('Ville', user!.city!, LucideIcons.building),
       if (user?.phone != null)
         _InfoItem('Téléphone', user!.phone, LucideIcons.phone),
       if (user?.profession != null)
@@ -3306,10 +3307,19 @@ class _PharmaciesDeGardeModalState extends State<_PharmaciesDeGardeModal> {
                                 Expanded(
                                   child: OutlinedButton.icon(
                                     onPressed: () {
-                                      PharmacieLocationService.instance.launchGpsItinerary(
-                                        latitude: item.latitude,
-                                        longitude: item.longitude,
-                                        destinationName: item.name,
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => InAppItineraryScreen(
+                                            destinationTitle: item.name,
+                                            destinationSubtitle: 'Pharmacie de garde - ${item.commune}',
+                                            destinationAddress: item.address,
+                                            destinationLatitude: item.latitude,
+                                            destinationLongitude: item.longitude,
+                                            destinationPhone: item.phone,
+                                            destinationCategory: 'Pharmacie',
+                                          ),
+                                        ),
                                       );
                                     },
                                     icon: const Icon(LucideIcons.navigation,

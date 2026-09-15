@@ -9,6 +9,7 @@ import 'video_call_screen.dart';
 import 'payment_screen.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'review_screen.dart';
+import 'in_app_itinerary_screen.dart';
 
 class AppointmentsScreen extends StatefulWidget {
   final VoidCallback? onBackToHome;
@@ -586,7 +587,35 @@ class _AppointmentCard extends StatelessWidget {
           else
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: () {},
+                onPressed: () {
+                  DoctorModel? doc;
+                  try {
+                    final patientProv = context.read<PatientProvider>();
+                    for (final d in patientProv.doctors) {
+                      if (d.id == appointment.doctorId) {
+                        doc = d;
+                        break;
+                      }
+                    }
+                  } catch (_) {}
+
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => InAppItineraryScreen(
+                        destinationTitle: appointment.doctorName,
+                        destinationSubtitle: doc?.specialty ?? appointment.doctorSpecialty,
+                        destinationAddress: doc?.address != null && doc!.address!.isNotEmpty
+                            ? '${doc.address!}, ${doc.city ?? 'Abidjan'}'
+                            : 'Cabinet médical, Abidjan',
+                        destinationLatitude: doc?.latitude ?? 5.3599517,
+                        destinationLongitude: doc?.longitude ?? -4.0082563,
+                        destinationPhone: doc?.phone,
+                        destinationCategory: 'Cabinet Médical',
+                      ),
+                    ),
+                  );
+                },
                 icon: const Icon(Icons.map_outlined, size: 16),
                 label: const Text('Itinéraire', style: TextStyle(fontFamily: 'Poppins', fontSize: 12)),
                 style: ElevatedButton.styleFrom(

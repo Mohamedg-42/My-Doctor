@@ -683,7 +683,6 @@ class _SectionHeader extends StatelessWidget {
 // ===== APPOINTMENTS TAB =====
 typedef _AppointmentsTab = DoctorAppointmentsTab;
 typedef _AptList = DoctorAptList;
->>>>>>> b992b745132b3302b50e0e3fccaedd90f6a210b1
 
 // ===== PATIENTS TAB (Demandes traitant) =====
 // Redirige vers DoctorRequestsScreen embarqué dans l'IndexedStack

@@ -9,6 +9,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/pharmacie_model.dart';
 import '../../data/services/pharmacie_location_service.dart';
+import '../../../../screens/patient/in_app_itinerary_screen.dart';
 
 enum _ViewMode { liste, carte }
 
@@ -562,10 +563,19 @@ class _PharmacieGardeMapScreenState extends State<PharmacieGardeMapScreen> {
                   onPressed: () {
                     final lat = p.latitude ?? PharmacieLocationService.defaultAbidjanLat;
                     final lng = p.longitude ?? PharmacieLocationService.defaultAbidjanLng;
-                    _locationService.launchGpsItinerary(
-                      latitude: lat,
-                      longitude: lng,
-                      destinationName: p.nomPharmacie,
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => InAppItineraryScreen(
+                          destinationTitle: p.nomPharmacie,
+                          destinationSubtitle: 'Pharmacie de garde - ${p.commune}',
+                          destinationAddress: p.adresseComplete.isNotEmpty ? p.adresseComplete : p.commune,
+                          destinationLatitude: lat,
+                          destinationLongitude: lng,
+                          destinationPhone: p.telephone,
+                          destinationCategory: 'Pharmacie',
+                        ),
+                      ),
                     );
                   },
                   icon: const Icon(LucideIcons.navigation, size: 14, color: Color(0xFF047857)),
@@ -747,10 +757,19 @@ class _PharmacieGardeMapScreenState extends State<PharmacieGardeMapScreen> {
                   onPressed: () {
                     final lat = p.latitude ?? PharmacieLocationService.defaultAbidjanLat;
                     final lng = p.longitude ?? PharmacieLocationService.defaultAbidjanLng;
-                    _locationService.launchGpsItinerary(
-                      latitude: lat,
-                      longitude: lng,
-                      destinationName: p.nomPharmacie,
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => InAppItineraryScreen(
+                          destinationTitle: p.nomPharmacie,
+                          destinationSubtitle: 'Pharmacie de garde - ${p.commune}',
+                          destinationAddress: p.adresseComplete.isNotEmpty ? p.adresseComplete : p.commune,
+                          destinationLatitude: lat,
+                          destinationLongitude: lng,
+                          destinationPhone: p.telephone,
+                          destinationCategory: 'Pharmacie',
+                        ),
+                      ),
                     );
                   },
                   icon: const Icon(LucideIcons.navigation, size: 13, color: Color(0xFF059669)),
@@ -927,10 +946,19 @@ class _PharmacieGardeMapScreenState extends State<PharmacieGardeMapScreen> {
                           onPressed: () {
                             final lat = _selectedForPreview!.latitude ?? 5.3572;
                             final lng = _selectedForPreview!.longitude ?? -3.9871;
-                            _locationService.launchGpsItinerary(
-                              latitude: lat,
-                              longitude: lng,
-                              destinationName: _selectedForPreview!.nomPharmacie,
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => InAppItineraryScreen(
+                                  destinationTitle: _selectedForPreview!.nomPharmacie,
+                                  destinationSubtitle: 'Pharmacie de garde - ${_selectedForPreview!.commune}',
+                                  destinationAddress: _selectedForPreview!.adresseComplete.isNotEmpty ? _selectedForPreview!.adresseComplete : _selectedForPreview!.commune,
+                                  destinationLatitude: lat,
+                                  destinationLongitude: lng,
+                                  destinationPhone: _selectedForPreview!.telephone,
+                                  destinationCategory: 'Pharmacie',
+                                ),
+                              ),
                             );
                           },
                           icon: const Icon(LucideIcons.navigation, size: 14, color: Colors.white),
