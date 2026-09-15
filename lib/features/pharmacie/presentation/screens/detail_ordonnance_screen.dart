@@ -37,7 +37,12 @@ class _DetailOrdonnanceScreenState extends State<DetailOrdonnanceScreen> {
         content: const Row(children: [
           Icon(Icons.check_circle_outline, color: Colors.white, size: 16),
           SizedBox(width: 8),
-          Text('Ordonnance validée — Notification envoyée au patient'),
+          Expanded(
+            child: Text(
+              'Ordonnance validée — Notification envoyée au patient',
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ]),
         backgroundColor: PharmacieColors.primary,
         behavior: SnackBarBehavior.floating,
@@ -70,14 +75,15 @@ class _DetailOrdonnanceScreenState extends State<DetailOrdonnanceScreen> {
                 style: TextStyle(fontFamily: 'Poppins', fontSize: 16,
                     fontWeight: FontWeight.w700, color: Color(0xFF1A2340))),
           ]),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Sélectionnez le motif de refus :',
-                  style: TextStyle(fontFamily: 'Poppins', fontSize: 12,
-                      color: Color(0xFF7A8BA0))),
-              const SizedBox(height: 12),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Sélectionnez le motif de refus :',
+                    style: TextStyle(fontFamily: 'Poppins', fontSize: 12,
+                        color: Color(0xFF7A8BA0))),
+                const SizedBox(height: 12),
               ...motifs.map((m) => GestureDetector(
                 onTap: () => setDialogState(() => motifSelectionne = m),
                 child: AnimatedContainer(
@@ -123,7 +129,8 @@ class _DetailOrdonnanceScreenState extends State<DetailOrdonnanceScreen> {
               )),
             ],
           ),
-          actions: [
+        ),
+        actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogCtx),
               child: const Text('Annuler',
@@ -546,7 +553,12 @@ class _DetailOrdonnanceScreenState extends State<DetailOrdonnanceScreen> {
                               content: const Row(children: [
                                 Icon(Icons.medication_rounded, color: Colors.white, size: 16),
                                 SizedBox(width: 8),
-                                Text('Commande marquée prête — Patient notifié'),
+                                Expanded(
+                                  child: Text(
+                                    'Commande marquée prête — Patient notifié',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
                               ]),
                               backgroundColor: PharmacieColors.primary,
                               behavior: SnackBarBehavior.floating,
@@ -675,8 +687,13 @@ class _CmuCalculatorState extends State<_CmuCalculator> {
       ),
       child: Column(children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text('CMU rembourse', style: TextStyle(fontFamily: 'Poppins',
-              fontSize: 11, color: Color(0xFF185FA5))),
+          const Flexible(
+            child: Text('CMU rembourse',
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontFamily: 'Poppins',
+                    fontSize: 11, color: Color(0xFF185FA5))),
+          ),
+          const SizedBox(width: 8),
           Text('${widget.taux.toInt()}% = ${rembourse.toInt()} FCFA',
               style: const TextStyle(fontFamily: 'Poppins', fontSize: 11,
                   fontWeight: FontWeight.w700, color: Color(0xFF185FA5))),
@@ -760,12 +777,16 @@ class _MedicamentCard extends StatelessWidget {
           if (medicament.prixUnitaire != null) ...[
             const SizedBox(height: 6),
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text(medicament.disponible ? '✅ En stock' : '❌ Rupture de stock',
-                  style: TextStyle(fontFamily: 'Poppins', fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: medicament.disponible
-                          ? PharmacieColors.primary
-                          : const Color(0xFFE74C3C))),
+              Flexible(
+                child: Text(medicament.disponible ? '✅ En stock' : '❌ Rupture de stock',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontFamily: 'Poppins', fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: medicament.disponible
+                            ? PharmacieColors.primary
+                            : const Color(0xFFE74C3C))),
+              ),
+              const SizedBox(width: 8),
               Text('${(medicament.prixUnitaire! * medicament.dureeJours).toInt()} FCFA',
                   style: const TextStyle(fontFamily: 'Poppins', fontSize: 12,
                       fontWeight: FontWeight.w800, color: PharmacieColors.primary)),

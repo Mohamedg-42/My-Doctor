@@ -32,6 +32,9 @@ class DoctorModel {
   final String? whatsappNumber;
   final DateTime createdAt;
   final double? distanceKm;
+  final int? maxPatients;
+
+  int get patientCapacity => maxPatients ?? 50;
 
   DoctorModel({
     required this.id,
@@ -67,6 +70,7 @@ class DoctorModel {
     this.whatsappNumber,
     required this.createdAt,
     this.distanceKm,
+    this.maxPatients,
   });
 
   String get fullName => 'Dr. $firstName $lastName';
@@ -122,6 +126,11 @@ class DoctorModel {
       whatsappNumber: json['whatsapp_number'],
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
       distanceKm: json['distance_km']?.toDouble(),
+      maxPatients: json['max_patients'] != null
+          ? int.tryParse(json['max_patients'].toString())
+          : (json['maxPatients'] != null
+              ? int.tryParse(json['maxPatients'].toString())
+              : null),
     );
   }
 
@@ -158,5 +167,7 @@ class DoctorModel {
         'pro_card_url': proCardUrl,
         'whatsapp_number': whatsappNumber,
         'created_at': createdAt.toIso8601String(),
+        'distance_km': distanceKm,
+        'max_patients': maxPatients ?? 50,
       };
 }

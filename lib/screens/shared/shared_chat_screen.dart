@@ -6,6 +6,12 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/message_provider.dart';
+import '../../providers/app_provider.dart' show PaymentType;
+import '../../services/database_service.dart';
+import '../patient/payment_screen.dart';
+import '../../providers/patient_subscription_provider.dart';
+import '../patient/patient_subscription_screen.dart';
+import '../doctor/doctor_call_settings_screen.dart';
 
 // ─── Screen principal ─────────────────────────────────────────────────────────
 
@@ -51,6 +57,7 @@ class _SharedChatScreenState extends State<SharedChatScreen>
   bool _showEmoji = false;
   bool _showAttach = false;
   bool _isTyping = false;
+  bool _hasAutoPromptedQuota = false;
   Timer? _typingTimer;
   Timer? _typingStopTimer;
 
@@ -82,13 +89,22 @@ class _SharedChatScreenState extends State<SharedChatScreen>
       if (_focusNode.hasFocus) setState(() { _showEmoji = false; });
     });
 
-    // Marquer comme lu à l'ouverture
+    // Marquer comme lu à l'ouverture & alerter si le quota est déjà atteint
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final mp = context.read<MessageProvider>();
       if (widget.isDoctor) {
         mp.markReadByDoctor(widget.conversationId);
       } else {
         mp.markReadByPatient(widget.conversationId);
+        final auth = context.read<AuthProvider>();
+        final patientId = auth.currentUser?.id ?? 'patient';
+        final remaining = mp.getRemainingFreeMessages(patientId);
+        if (remaining <= 0 && !_hasAutoPromptedQuota) {
+          _hasAutoPromptedQuota = true;
+          Future.delayed(const Duration(milliseconds: 400), () {
+            if (mounted) _showPayConsultationDialog();
+          });
+        }
       }
       _scrollToBottom(animated: false);
     });
@@ -152,27 +168,23 @@ class _SharedChatScreenState extends State<SharedChatScreen>
 
       if (!success) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Row(
-                children: [
-                  Icon(Icons.lock_rounded, color: Colors.white, size: 20),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Limite de 10 messages gratuits atteinte.',
-                      style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ],
-              ),
-              backgroundColor: AppColors.error,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          );
+          _showPayConsultationDialog();
         }
         return;
+      }
+
+      // Vérifier si ce message vient de consommer le dernier du quota (10/10)
+      final remainingAfter = mp.getRemainingFreeMessages(patientId);
+      if (remainingAfter <= 0 && mounted) {
+        mp.sendSystemMessage(
+          widget.conversationId,
+          '🔔 Quota de 10 messages gratuits atteint. Pour continuer à échanger avec ${widget.otherPersonName}, veuillez régler votre consultation.',
+        );
+        Future.delayed(const Duration(milliseconds: 350), () {
+          if (mounted) {
+            _showPayConsultationDialog();
+          }
+        });
       }
     }
 
@@ -361,12 +373,43 @@ class _SharedChatScreenState extends State<SharedChatScreen>
           onSelected: (val) {
             if (val == 'rdv') _showRdvDialog();
             if (val == 'profil') _showProfilDialog();
+            if (val == 'call_perm') _showDoctorCallPermQuickDialog();
+            if (val == 'call_settings') {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DoctorCallSettingsScreen(doctorId: _resolveDoctorId()),
+                ),
+              );
+            }
             if (val == 'clear') {
               // On vide les messages de la conversation
               context.read<MessageProvider>().messagesOf(widget.conversationId);
             }
           },
           itemBuilder: (_) => [
+            if (widget.isDoctor) ...[
+              const PopupMenuItem(
+                value: 'call_perm',
+                child: Row(
+                  children: [
+                    Icon(Icons.phone_locked_outlined, size: 18, color: AppColors.primary),
+                    SizedBox(width: 8),
+                    Text('Autoriser/Bloquer appels'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'call_settings',
+                child: Row(
+                  children: [
+                    Icon(Icons.settings_phone_outlined, size: 18, color: AppColors.brandBlue),
+                    SizedBox(width: 8),
+                    Text('Gestion des appels'),
+                  ],
+                ),
+              ),
+            ],
             const PopupMenuItem(value: 'rdv', child: Row(children: [Icon(Icons.calendar_today_outlined, size: 18), SizedBox(width: 8), Text('Prendre RDV')])),
             const PopupMenuItem(value: 'profil', child: Row(children: [Icon(Icons.person_outline_rounded, size: 18), SizedBox(width: 8), Text('Voir le profil')])),
           ],
@@ -415,9 +458,9 @@ class _SharedChatScreenState extends State<SharedChatScreen>
       textColor = AppColors.warning;
       statusText = 'Attention : il ne vous reste que $remaining message${remaining > 1 ? 's' : ''} gratuit${remaining > 1 ? 's' : ''}.';
     } else {
-      badgeColor = AppColors.error.withValues(alpha: 0.12);
-      textColor = AppColors.error;
-      statusText = 'Limite atteinte : 0 message gratuit restant.';
+      badgeColor = const Color(0xFFFFF1F2);
+      textColor = const Color(0xFFE11D48);
+      statusText = 'Quota atteint : veuillez régler la consultation pour continuer.';
     }
 
     return Container(
@@ -443,22 +486,44 @@ class _SharedChatScreenState extends State<SharedChatScreen>
               ),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: textColor,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              '$remaining / 10',
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+          if (remaining <= 0) ...[
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: _showPayConsultationDialog,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE11D48),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text(
+                'Payer',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-          ),
+          ] else
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: textColor,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$remaining / 10',
+                style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -775,56 +840,97 @@ class _SharedChatScreenState extends State<SharedChatScreen>
 
   // ── Zone de saisie bloquée (quand limite de 10 messages atteinte) ────────────
   Widget _buildBlockedInputArea() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      margin: EdgeInsets.only(
-        left: 12, right: 12, top: 8,
-        bottom: MediaQuery.of(context).padding.bottom + 8,
-      ),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF0F0),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.error.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
+    return InkWell(
+      onTap: _showPayConsultationDialog,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        margin: EdgeInsets.only(
+          left: 12, right: 12, top: 8,
+          bottom: MediaQuery.of(context).padding.bottom + 8,
+        ),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF1F2),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFF43F5E).withValues(alpha: 0.35)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
-            child: const Icon(Icons.lock_rounded, color: AppColors.error, size: 20),
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
               children: [
-                Text(
-                  'Limite de 10 messages atteinte',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: AppColors.error,
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF43F5E).withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
                   ),
+                  child: const Icon(Icons.lock_rounded, color: Color(0xFFE11D48), size: 22),
                 ),
-                SizedBox(height: 2),
-                Text(
-                  'Vous avez consommé vos 10 messages gratuits. Le médecin peut toujours vous répondre.',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Quota de 10 messages atteint',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: Color(0xFFBE123C),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Veuillez régler la consultation pour continuer à échanger avec ${widget.otherPersonName}.',
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 11,
+                          color: Color(0xFF881337),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _showPayConsultationDialog,
+                icon: const Icon(Icons.credit_card_rounded, size: 18, color: Colors.white),
+                label: const Text(
+                  'Payer la consultation',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -888,8 +994,66 @@ class _SharedChatScreenState extends State<SharedChatScreen>
     );
   }
 
-  // ── Dialogs ───────────────────────────────────────────────────────────────────
+  // ── Résolution des identifiants ──────────────────────────────────────────────
+  String _resolveDoctorId() {
+    if (widget.isDoctor) {
+      return widget.doctorId ?? 'doctor_kouame';
+    }
+    if (widget.doctorId != null && widget.doctorId!.isNotEmpty) {
+      return widget.doctorId!;
+    }
+    final mp = context.read<MessageProvider>();
+    try {
+      final conv = mp.conversations.firstWhere((c) => c.id == widget.conversationId);
+      return conv.doctorId;
+    } catch (_) {
+      return 'doctor_kouame';
+    }
+  }
+
+  String _resolvePatientId() {
+    if (!widget.isDoctor) {
+      final auth = context.read<AuthProvider>();
+      return auth.currentUser?.id ?? 'patient';
+    }
+    final mp = context.read<MessageProvider>();
+    try {
+      final conv = mp.conversations.firstWhere((c) => c.id == widget.conversationId);
+      return conv.patientId;
+    } catch (_) {
+      return 'patient';
+    }
+  }
+
+  // ── Dialogs & Appels ──────────────────────────────────────────────────────────
   void _showCallDialog({required bool isVideo}) {
+    if (!widget.isDoctor) {
+      final docId = _resolveDoctorId();
+      final patId = _resolvePatientId();
+      final sub = context.read<PatientSubscriptionProvider>().currentSubscription;
+      final isSubscribed = sub != null && !sub.isFree && !sub.isExpired && sub.isActive;
+
+      final permStatus = DatabaseService().checkDoctorCallPermission(
+        doctorId: docId,
+        patientId: patId,
+        isPatientSubscribed: isSubscribed,
+      );
+
+      switch (permStatus) {
+        case CallPermissionStatus.requiresSubscription:
+          _showCallSubscriptionRequiredModal(isVideo: isVideo);
+          return;
+        case CallPermissionStatus.blockedByDoctor:
+          _showCallBlockedByDoctorDialog();
+          return;
+        case CallPermissionStatus.callsDisabled:
+          _showCallsDisabledDialog();
+          return;
+        case CallPermissionStatus.allowed:
+          break;
+      }
+    }
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -922,6 +1086,516 @@ class _SharedChatScreenState extends State<SharedChatScreen>
                 style: const TextStyle(fontFamily: 'Poppins', color: Colors.white)),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showCallSubscriptionRequiredModal({required bool isVideo}) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(28),
+            topRight: Radius.circular(28),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 44,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF2563EB), Color(0xFF0284C7)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF2563EB).withValues(alpha: 0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Icon(
+                isVideo ? Icons.videocam_rounded : Icons.call_rounded,
+                color: Colors.white,
+                size: 32,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Abonnement Requis pour Appeler',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 10),
+            RichText(
+              textAlign: TextAlign.center,
+              text: TextSpan(
+                style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 13,
+                  color: Color(0xFF64748B),
+                  height: 1.5,
+                ),
+                children: [
+                  TextSpan(
+                    text: widget.otherPersonName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const TextSpan(
+                    text:
+                        ' réserve les appels directs audio et vidéo aux patients disposant d\'un abonnement actif (Pass Essentiel, Confort ou Famille).',
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.workspace_premium_rounded, color: Color(0xFF2563EB), size: 24),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Appels directs illimités, téléconsultations prioritaires et suivi personnalisé.',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1E40AF),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(sheetContext);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PatientSubscriptionScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.star_rounded, color: Colors.white, size: 20),
+                label: const Text(
+                  'Activer un abonnement',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 2,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(sheetContext);
+                  _showRdvDialog();
+                },
+                icon: const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.primary),
+                label: const Text(
+                  'Prendre un rendez-vous à la place',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: AppColors.primary,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  side: const BorderSide(color: AppColors.primary),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.pop(sheetContext),
+              child: const Text(
+                'Fermer',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  color: Color(0xFF94A3B8),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCallBlockedByDoctorDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.phone_disabled_rounded, color: Color(0xFFEF4444)),
+            SizedBox(width: 8),
+            Text(
+              'Appels non autorisés',
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          '${widget.otherPersonName} n\'autorise pas les appels directs pour le moment. Vous pouvez toujours lui adresser des messages écrits ou demander un rendez-vous.',
+          style: const TextStyle(fontFamily: 'Poppins', fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Compris'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              _showRdvDialog();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text(
+              'Prendre RDV',
+              style: TextStyle(fontFamily: 'Poppins', color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCallsDisabledDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.do_not_disturb_on_rounded, color: Color(0xFFF59E0B)),
+            SizedBox(width: 8),
+            Text(
+              'Médecin indisponible',
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          '${widget.otherPersonName} a temporairement désactivé les appels directs (mode Ne pas déranger). Veuillez lui adresser un message écrit ou réserver une consultation.',
+          style: const TextStyle(fontFamily: 'Poppins', fontSize: 13),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Compris', style: TextStyle(fontFamily: 'Poppins', color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDoctorCallPermQuickDialog() {
+    final docId = _resolveDoctorId();
+    final patId = _resolvePatientId();
+    final db = DatabaseService();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          final curPolicy = db.getDoctorCallPolicy(docId);
+          final isAllowed = curPolicy.allowedPatientIds.contains(patId);
+          final isBlocked = curPolicy.blockedPatientIds.contains(patId);
+          final isDefault = !isAllowed && !isBlocked;
+
+          return Container(
+            padding: const EdgeInsets.all(24),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(28),
+                topRight: Radius.circular(28),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.brandBlue.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.phone_callback_rounded, color: AppColors.brandBlue, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Permissions d\'appel',
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                          Text(
+                            'Patient: ${widget.otherPersonName}',
+                            style: const TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 12,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                _buildPermCard(
+                  icon: Icons.workspace_premium_rounded,
+                  color: AppColors.primary,
+                  title: 'Selon abonnement (Recommandé)',
+                  subtitle: 'Le patient peut m\'appeler s\'il a un abonnement santé actif.',
+                  isSelected: isDefault,
+                  onTap: () {
+                    final messenger = ScaffoldMessenger.of(context);
+                    Navigator.pop(sheetContext);
+                    final newAllowed = List<String>.from(curPolicy.allowedPatientIds)..remove(patId);
+                    final newBlocked = List<String>.from(curPolicy.blockedPatientIds)..remove(patId);
+                    db.saveDoctorCallPolicy(curPolicy.copyWith(
+                      allowedPatientIds: newAllowed,
+                      blockedPatientIds: newBlocked,
+                    ));
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('Règle réinitialisée : appel conditionné par l\'abonnement', style: TextStyle(fontFamily: 'Poppins')),
+                        backgroundColor: AppColors.primary,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
+                _buildPermCard(
+                  icon: Icons.check_circle_rounded,
+                  color: Colors.green,
+                  title: 'Toujours autoriser',
+                  subtitle: 'Ce patient peut m\'appeler même sans abonnement.',
+                  isSelected: isAllowed,
+                  onTap: () {
+                    final messenger = ScaffoldMessenger.of(context);
+                    Navigator.pop(sheetContext);
+                    db.togglePatientCallPermission(
+                      doctorId: docId,
+                      patientId: patId,
+                      isAllowed: true,
+                    );
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text('Appels autorisés pour ${widget.otherPersonName}', style: const TextStyle(fontFamily: 'Poppins')),
+                        backgroundColor: Colors.green,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
+                _buildPermCard(
+                  icon: Icons.block_rounded,
+                  color: Colors.red,
+                  title: 'Bloquer les appels',
+                  subtitle: 'Ce patient ne pourra pas m\'appeler directement.',
+                  isSelected: isBlocked,
+                  onTap: () {
+                    final messenger = ScaffoldMessenger.of(context);
+                    Navigator.pop(sheetContext);
+                    db.togglePatientCallPermission(
+                      doctorId: docId,
+                      patientId: patId,
+                      isAllowed: false,
+                    );
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text('Appels bloqués pour ${widget.otherPersonName}', style: const TextStyle(fontFamily: 'Poppins')),
+                        backgroundColor: Colors.red,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildPermCard({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.08) : Colors.grey.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? color : Colors.grey.withValues(alpha: 0.25),
+            width: isSelected ? 1.8 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isSelected ? color.withValues(alpha: 0.15) : Colors.grey.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: isSelected ? color : Colors.grey[600], size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                      fontSize: 13,
+                      color: isSelected ? color : const Color(0xFF1E293B),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 11,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isSelected ? color : Colors.transparent,
+                border: Border.all(
+                  color: isSelected ? color : Colors.grey.withValues(alpha: 0.4),
+                  width: 2,
+                ),
+              ),
+              child: isSelected
+                  ? const Icon(Icons.check, size: 14, color: Colors.white)
+                  : null,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1020,6 +1694,368 @@ class _SharedChatScreenState extends State<SharedChatScreen>
               ),
             ],
             const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showPayConsultationDialog() {
+    if (!mounted) return;
+    final auth = context.read<AuthProvider>();
+    final user = auth.currentUser;
+    final patientId = user?.id ?? 'patient';
+    final hasCmu = (widget.cmuNumber != null && widget.cmuNumber!.isNotEmpty) ||
+        (user?.cmuNumber != null && user!.cmuNumber!.isNotEmpty);
+    final double amount = hasCmu ? 1500 : 5000;
+    const double originalPrice = 5000;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        padding: EdgeInsets.fromLTRB(
+          24, 20, 24,
+          MediaQuery.of(context).viewInsets.bottom + 28,
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(28),
+            topRight: Radius.circular(28),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // En-tête avec alerte quota
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF1F2),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFFF43F5E).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: const Icon(Icons.lock_clock_rounded,
+                      color: Color(0xFFE11D48), size: 28),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF1F2),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'QUOTA DE MESSAGES ATTEINT (10/10)',
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFE11D48),
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Payer la consultation',
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Message explicatif
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: RichText(
+                text: TextSpan(
+                  style: const TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 13,
+                    color: Color(0xFF334155),
+                    height: 1.5,
+                  ),
+                  children: [
+                    const TextSpan(
+                      text: 'Vous avez utilisé la totalité de vos ',
+                    ),
+                    const TextSpan(
+                      text: '10 messages gratuits',
+                      style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                    ),
+                    TextSpan(
+                      text: ' avec ${widget.otherPersonName}.\n\nPour continuer vos échanges médicaux en toute confidentialité, poser vos questions et recevoir vos ordonnances sécurisées, ',
+                    ),
+                    const TextSpan(
+                      text: 'veuillez régler la consultation.',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Récapitulatif Tarif & Prise en charge CMU
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primary.withValues(alpha: 0.06),
+                    AppColors.brandBlue.withValues(alpha: 0.03),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 18,
+                            backgroundColor: AppColors.primaryUltraLight,
+                            child: Text(
+                              widget.otherPersonName.isNotEmpty
+                                  ? widget.otherPersonName[0].toUpperCase()
+                                  : 'D',
+                              style: const TextStyle(
+                                fontFamily: 'Poppins',
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.otherPersonName,
+                                style: const TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                              Text(
+                                widget.otherPersonSpecialty ?? widget.otherPersonRole,
+                                style: const TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 11,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          if (hasCmu) ...[
+                            Text(
+                              '${originalPrice.toInt()} FCFA',
+                              style: const TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 11,
+                                color: Color(0xFF94A3B8),
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                          ],
+                          Text(
+                            '${amount.toInt()} FCFA',
+                            style: const TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  if (hasCmu) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.verified_rounded,
+                              color: AppColors.success, size: 16),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Carte CMU active (${widget.cmuNumber ?? user?.cmuNumber}) : 70% pris en charge par la CNAM',
+                              style: const TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.success,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Bouton principal : Payer la consultation
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PaymentScreen(
+                        amount: amount,
+                        description: 'Consultation médicale avec ${widget.otherPersonName}',
+                        doctorId: widget.doctorId,
+                        paymentType: PaymentType.appointment,
+                        onSuccess: () async {
+                          final mp = context.read<MessageProvider>();
+                          final messenger = ScaffoldMessenger.maybeOf(context);
+                          await DatabaseService().resetPatientMessageUsage(patientId, 10);
+                          mp.sendSystemMessage(
+                            widget.conversationId,
+                            '✅ Consultation réglée avec succès (${amount.toInt()} FCFA). Vos échanges médicaux avec ${widget.otherPersonName} sont débloqués.',
+                          );
+                          messenger?.showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      'Consultation payée ! 10 nouveaux messages débloqués avec ${widget.otherPersonName}.',
+                                      style: const TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              backgroundColor: AppColors.success,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.credit_card_rounded, color: Colors.white, size: 18),
+                label: Text(
+                  'Payer la consultation (${amount.toInt()} FCFA)',
+                  style: const TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 2,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Action secondaire : Proposer un rendez-vous en cabinet
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _showRdvDialog();
+                    },
+                    icon: const Icon(Icons.calendar_today_rounded, size: 16),
+                    label: const Text('Prendre RDV en cabinet'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textPrimary,
+                      side: BorderSide(color: Colors.grey.shade300),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Fermer', style: TextStyle(color: AppColors.textSecondary)),
+                ),
+              ],
+            ),
           ],
         ),
       ),

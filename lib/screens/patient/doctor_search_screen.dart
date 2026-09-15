@@ -290,34 +290,36 @@ class _DoctorSearchScreenState extends State<DoctorSearchScreen> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.backgroundGrey, borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 16),
-            const Text('Trier par', style: AppTextStyles.heading3),
-            const SizedBox(height: 16),
-            ...[
-              ('rating', Icons.star_rounded, 'Mieux notés'),
-              ('reviews', Icons.rate_review_outlined, 'Plus d\'avis'),
-              ('price', Icons.arrow_upward_rounded, 'Prix croissant'),
-              ('price_desc', Icons.arrow_downward_rounded, 'Prix décroissant'),
-              ('experience', Icons.work_outline_rounded, 'Expérience'),
-              ('distance', Icons.location_on_outlined, 'Plus proche'),
-            ].map((item) => ListTile(
-              leading: Icon(item.$2, color: patient.sortBy == item.$1 ? AppColors.primary : AppColors.textSecondary),
-              title: Text(item.$3, style: AppTextStyles.body1.copyWith(
-                color: patient.sortBy == item.$1 ? AppColors.primary : AppColors.textPrimary,
-                fontWeight: patient.sortBy == item.$1 ? FontWeight.w700 : FontWeight.normal,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.backgroundGrey, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 16),
+              const Text('Trier par', style: AppTextStyles.heading3),
+              const SizedBox(height: 16),
+              ...[
+                ('rating', Icons.star_rounded, 'Mieux notés'),
+                ('reviews', Icons.rate_review_outlined, 'Plus d\'avis'),
+                ('price', Icons.arrow_upward_rounded, 'Prix croissant'),
+                ('price_desc', Icons.arrow_downward_rounded, 'Prix décroissant'),
+                ('experience', Icons.work_outline_rounded, 'Expérience'),
+                ('distance', Icons.location_on_outlined, 'Plus proche'),
+              ].map((item) => ListTile(
+                leading: Icon(item.$2, color: patient.sortBy == item.$1 ? AppColors.primary : AppColors.textSecondary),
+                title: Text(item.$3, style: AppTextStyles.body1.copyWith(
+                  color: patient.sortBy == item.$1 ? AppColors.primary : AppColors.textPrimary,
+                  fontWeight: patient.sortBy == item.$1 ? FontWeight.w700 : FontWeight.normal,
+                )),
+                trailing: patient.sortBy == item.$1 ? const Icon(Icons.check_circle_rounded, color: AppColors.primary) : null,
+                onTap: () {
+                  patient.setSortBy(item.$1);
+                  Navigator.pop(context);
+                },
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               )),
-              trailing: patient.sortBy == item.$1 ? const Icon(Icons.check_circle_rounded, color: AppColors.primary) : null,
-              onTap: () {
-                patient.setSortBy(item.$1);
-                Navigator.pop(context);
-              },
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            )),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -372,12 +374,16 @@ class _DoctorSearchScreenState extends State<DoctorSearchScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('5 000 F CFA', style: AppTextStyles.caption),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                      decoration: BoxDecoration(color: AppColors.primaryUltraLight, borderRadius: BorderRadius.circular(10)),
-                      child: Text(
-                        tempMaxPrice >= 100000 ? 'Tous les prix' : '${tempMaxPrice.toStringAsFixed(0)} F CFA',
-                        style: AppTextStyles.body2.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700),
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(color: AppColors.primaryUltraLight, borderRadius: BorderRadius.circular(10)),
+                        child: Text(
+                          tempMaxPrice >= 100000 ? 'Tous les prix' : '${tempMaxPrice.toStringAsFixed(0)} F CFA',
+                          style: AppTextStyles.body2.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ),
                     const Text('100 000 F', style: AppTextStyles.caption),

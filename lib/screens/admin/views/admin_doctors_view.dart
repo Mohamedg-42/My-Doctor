@@ -1,9 +1,15 @@
+// lib/screens/admin/views/admin_doctors_view.dart
+//
+// Vue de gestion des praticiens (validation, suspension, réactivation) pour l'administrateur.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../providers/treating_request_provider.dart';
 import '../../../services/database_service.dart';
+import '../../../providers/treating_request_provider.dart';
+import '../components/admin_empty_state.dart';
+import '../../../widgets/doctor/set_patient_capacity_dialog.dart';
 
 class AdminDoctorsView extends StatefulWidget {
   const AdminDoctorsView({super.key});
@@ -13,10 +19,9 @@ class AdminDoctorsView extends StatefulWidget {
 }
 
 class _AdminDoctorsViewState extends State<AdminDoctorsView> {
-  final _db = DatabaseService();
-  final _searchCtrl = TextEditingController();
   String _searchQuery = '';
-  String _statusFilter = 'all'; // 'all', 'pending', 'active'
+  String _selectedFilter = 'Tous'; // 'Tous', 'En attente', 'Validés', 'Suspendus'
+  final TextEditingController _searchCtrl = TextEditingController();
 
   @override
   void dispose() {
@@ -24,374 +29,478 @@ class _AdminDoctorsViewState extends State<AdminDoctorsView> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final trProvider = context.watch<TreatingRequestProvider>();
-    final allDoctors = _db.getAllDoctors(onlyActive: false);
+  Future<void> _changeDoctorStatus(String doctorId, String doctorName, String newStatus, String actionLabel) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('$actionLabel le Dr. $doctorName'),
+        content: Text(
+          newStatus == 'active'
+              ? 'Confirmez-vous la validation de ce médecin ? Il apparaîtra immédiatement dans la liste publique des praticiens.'
+              : (newStatus == 'suspended'
+                  ? 'Confirmez-vous la suspension de ce médecin ? Il ne pourra plus recevoir de rendez-vous ni accéder à son espace.'
+                  : 'Confirmez-vous le rejet de cette candidature ?'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: newStatus == 'active'
+                  ? AppColors.success
+                  : (newStatus == 'suspended' ? AppColors.error : Colors.grey.shade700),
+              foregroundColor: Colors.white,
+            ),
+            child: Text(actionLabel),
+          ),
+        ],
+      ),
+    );
 
-    final filtered = allDoctors.where((d) {
-      if (_statusFilter == 'pending' && d.status != 'pending') return false;
-      if (_statusFilter == 'active' && d.status != 'active') return false;
-      if (_searchQuery.isNotEmpty) {
-        final q = _searchQuery.toLowerCase();
-        final matchName = '${d.firstName} ${d.lastName}'.toLowerCase().contains(q);
-        final matchSpec = (d.specialty ?? '').toLowerCase().contains(q);
-        final matchOrder = (d.orderNumber ?? '').toLowerCase().contains(q);
-        final matchPhone = d.phone.toLowerCase().contains(q);
-        return matchName || matchSpec || matchOrder || matchPhone;
-      }
-      return true;
-    }).toList();
+    if (confirm != true || !mounted) return;
 
-    final pendingCount = allDoctors.where((d) => d.status == 'pending').length;
+    try {
+      await DatabaseService().updateUserStatus(doctorId, newStatus);
+      if (!mounted) return;
 
-    return Column(
-      children: [
-        // ── Barre de recherche et filtres ────────────────────────────────
-        Container(
-          color: Colors.white,
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-          child: Column(
+      setState(() {});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
             children: [
-              Container(
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceSubtle,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.borderSubtle),
-                ),
-                child: TextField(
-                  controller: _searchCtrl,
-                  onChanged: (v) => setState(() => _searchQuery = v.trim()),
-                  style: const TextStyle(fontFamily: 'Poppins', fontSize: 13),
-                  decoration: InputDecoration(
-                    hintText: 'Rechercher médecin, spécialité, N° ordre...',
-                    hintStyle: const TextStyle(fontFamily: 'Poppins', fontSize: 12, color: AppColors.textMuted),
-                    prefixIcon: const Icon(LucideIcons.search, size: 18, color: AppColors.textMuted),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(LucideIcons.x, size: 16),
-                            onPressed: () {
-                              _searchCtrl.clear();
-                              setState(() => _searchQuery = '');
-                            },
-                          )
-                        : null,
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 11),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  _buildTabPill('Tous (${allDoctors.length})', 'all'),
-                  const SizedBox(width: 8),
-                  _buildTabPill('En attente ($pendingCount)', 'pending', isPending: pendingCount > 0),
-                  const SizedBox(width: 8),
-                  _buildTabPill('Validés (${allDoctors.length - pendingCount})', 'active'),
-                ],
+              const Icon(LucideIcons.circle_check, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('Statut du Dr. $doctorName mis à jour avec succès ($newStatus).'),
               ),
             ],
           ),
+          backgroundColor: newStatus == 'active' ? AppColors.success : AppColors.brandBlue,
+          behavior: SnackBarBehavior.floating,
         ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur lors de la mise à jour : $e'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
-        // ── Liste des médecins ────────────────────────────────────────────
-        Expanded(
-          child: filtered.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(LucideIcons.stethoscope, size: 48, color: AppColors.textMuted.withValues(alpha: 0.5)),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Aucun médecin trouvé',
-                        style: TextStyle(fontFamily: 'Poppins', fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (_, i) {
-                    final doc = filtered[i];
-                    final requests = trProvider.requestsForDoctor(doc.id);
-                    return _DoctorAdminCard(
-                      doctor: doc,
-                      requestsCount: requests.length,
-                      acceptedRequestsCount: requests.where((r) => r.isAccepted).length,
-                      onUpdated: () => setState(() {}),
-                    );
-                  },
-                ),
+  void _showDoctorDetails(DbUser doc, int requestsReceived, int requestsAccepted) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: AppColors.brandBlue.withValues(alpha: 0.15),
+              child: Text(
+                doc.firstName.isNotEmpty ? doc.firstName[0].toUpperCase() : 'D',
+                style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.brandBlue),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Dr. ${doc.lastName.toUpperCase()} ${doc.firstName}',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text(doc.specialty ?? 'Médecin Généraliste',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                ],
+              ),
+            ),
+          ],
         ),
-      ],
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _DetailRow('Identifiant', doc.id),
+                _DetailRow('Numéro d\'Ordre (OPCI)', doc.orderNumber ?? 'Non renseigné'),
+                _DetailRow('Téléphone', doc.phone),
+                _DetailRow('E-mail', doc.email),
+                _DetailRow('Localisation', '${doc.city ?? "Abidjan"} ${doc.commune != null ? "(${doc.commune})" : ""}'),
+                _DetailRow('Statut du compte', doc.status.toUpperCase()),
+                _DetailRow('Capacité max patientèle', '${doc.patientCapacity} patients'),
+                _DetailRow('Demandes reçues', '$requestsReceived'),
+                _DetailRow('Demandes acceptées', '$requestsAccepted'),
+                if (doc.bio != null && doc.bio!.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  const Text('Biographie / Présentation :', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  const SizedBox(height: 4),
+                  Text(doc.bio!, style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton.icon(
+            icon: const Icon(LucideIcons.settings_2, size: 15),
+            label: const Text('Modifier capacité'),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final res = await SetPatientCapacityDialog.show(
+                context,
+                doctorId: doc.id,
+                currentCapacity: doc.patientCapacity,
+              );
+              if (res == true && mounted) {
+                setState(() {});
+              }
+            },
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Fermer'),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildTabPill(String label, String value, {bool isPending = false}) {
-    final isSelected = _statusFilter == value;
-    return InkWell(
-      onTap: () => setState(() => _statusFilter = value),
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? (isPending ? AppColors.warning : AppColors.brandTurquoise)
-              : AppColors.surfaceSubtle,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected
-                ? Colors.transparent
-                : (isPending ? AppColors.warning.withValues(alpha: 0.4) : AppColors.borderSubtle),
+  @override
+  Widget build(BuildContext context) {
+    final db = DatabaseService();
+    final requestProvider = context.watch<TreatingRequestProvider>();
+    final allDoctors = db.getAllDoctors(onlyActive: false);
+
+    // Filtrage
+    final filtered = allDoctors.where((d) {
+      final matchesFilter = _selectedFilter == 'Tous' ||
+          (_selectedFilter == 'En attente' && d.status == 'pending') ||
+          (_selectedFilter == 'Validés' && d.status == 'active') ||
+          (_selectedFilter == 'Suspendus' && d.status == 'suspended');
+
+      final q = _searchQuery.toLowerCase();
+      final matchesQuery = q.isEmpty ||
+          d.lastName.toLowerCase().contains(q) ||
+          d.firstName.toLowerCase().contains(q) ||
+          (d.specialty != null && d.specialty!.toLowerCase().contains(q)) ||
+          (d.orderNumber != null && d.orderNumber!.toLowerCase().contains(q)) ||
+          d.phone.toLowerCase().contains(q);
+
+      return matchesFilter && matchesQuery;
+    }).toList();
+
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Barre de recherche
+          Container(
+            height: 46,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: (v) => setState(() => _searchQuery = v),
+              style: const TextStyle(fontFamily: 'Poppins', fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'Rechercher par nom, spécialité, n° d\'ordre, téléphone...',
+                hintStyle: TextStyle(fontFamily: 'Poppins', fontSize: 12, color: Colors.grey.shade400),
+                prefixIcon: const Icon(LucideIcons.search, size: 18, color: Colors.grey),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 16),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
           ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 11,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected ? Colors.white : (isPending ? AppColors.warning : AppColors.textSecondary),
+          const SizedBox(height: 12),
+          // Filtres statut
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: ['Tous', 'En attente', 'Validés', 'Suspendus'].map((f) {
+                final isSel = _selectedFilter == f;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(f),
+                    selected: isSel,
+                    onSelected: (_) => setState(() => _selectedFilter = f),
+                    selectedColor: AppColors.brandBlue,
+                    labelStyle: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 12,
+                      fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
+                      color: isSel ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
           ),
-        ),
+          const SizedBox(height: 20),
+
+          // Liste des médecins
+          Expanded(
+            child: filtered.isEmpty
+                ? const AdminEmptyState(
+                    icon: LucideIcons.user_x,
+                    title: 'Aucun médecin trouvé',
+                    message: 'Aucun résultat ne correspond à vos critères de recherche ou de filtre.',
+                  )
+                : ListView.separated(
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, i) {
+                      final doc = filtered[i];
+                      final reqs = requestProvider.getRequestsForDoctor(doc.id);
+                      final acceptedCount = reqs.where((r) => r.isAccepted).length;
+
+                      final isPending = doc.status == 'pending';
+                      final isActive = doc.status == 'active';
+                      final isSuspended = doc.status == 'suspended';
+
+                      final statusColor = isActive
+                          ? AppColors.success
+                          : (isPending ? const Color(0xFFEA580C) : AppColors.error);
+
+                      final statusLabel = isActive
+                          ? 'Validé'
+                          : (isPending ? 'En attente' : 'Suspendu');
+
+                      return Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isPending
+                                ? const Color(0xFFFDBA74)
+                                : Colors.grey.shade200,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.02),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isNarrow = constraints.maxWidth < 600;
+
+                            final actionButtons = Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(LucideIcons.eye, size: 18, color: Color(0xFF475569)),
+                                  tooltip: 'Consulter profil',
+                                  onPressed: () => _showDoctorDetails(doc, reqs.length, acceptedCount),
+                                ),
+                                if (isPending) ...[
+                                  ElevatedButton.icon(
+                                    onPressed: () => _changeDoctorStatus(doc.id, doc.lastName, 'active', 'Valider'),
+                                    icon: const Icon(LucideIcons.check, size: 14),
+                                    label: const Text('Valider'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.success,
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: () => _changeDoctorStatus(doc.id, doc.lastName, 'rejected', 'Refuser'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.error,
+                                      side: const BorderSide(color: AppColors.error),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                    child: const Text('Refuser'),
+                                  ),
+                                ],
+                                if (isActive)
+                                  OutlinedButton.icon(
+                                    onPressed: () => _changeDoctorStatus(doc.id, doc.lastName, 'suspended', 'Suspendre'),
+                                    icon: const Icon(LucideIcons.ban, size: 14),
+                                    label: const Text('Suspendre'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.error,
+                                      side: const BorderSide(color: AppColors.error),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                  ),
+                                if (isSuspended)
+                                  ElevatedButton.icon(
+                                    onPressed: () => _changeDoctorStatus(doc.id, doc.lastName, 'active', 'Réactiver'),
+                                    icon: const Icon(LucideIcons.rotate_ccw, size: 14),
+                                    label: const Text('Réactiver'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.brandBlue,
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                  ),
+                              ],
+                            );
+
+                            final doctorInfo = Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 24,
+                                  backgroundColor: AppColors.brandBlue.withValues(alpha: 0.1),
+                                  child: Text(
+                                    doc.firstName.isNotEmpty ? doc.firstName[0].toUpperCase() : 'D',
+                                    style: const TextStyle(
+                                      fontFamily: 'Poppins',
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.brandBlue,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              'Dr. ${doc.lastName.toUpperCase()} ${doc.firstName}',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontFamily: 'Poppins',
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w700,
+                                                color: Color(0xFF0F172A),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: statusColor.withValues(alpha: 0.12),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              statusLabel,
+                                              style: TextStyle(
+                                                fontFamily: 'Poppins',
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w700,
+                                                color: statusColor,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${doc.specialty ?? "Généraliste"} • Ordre : ${doc.orderNumber ?? "Non renseigné"} • Tél : ${doc.phone} • Capacité : ${doc.patientCapacity} patients',
+                                        style: TextStyle(
+                                          fontFamily: 'Poppins',
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Demandes traitant : ${reqs.length} reçues, $acceptedCount acceptées',
+                                        style: const TextStyle(
+                                          fontFamily: 'Poppins',
+                                          fontSize: 11,
+                                          color: AppColors.brandBlue,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+
+                            if (isNarrow) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  doctorInfo,
+                                  const SizedBox(height: 12),
+                                  actionButtons,
+                                ],
+                              );
+                            }
+
+                            return Row(
+                              children: [
+                                Expanded(child: doctorInfo),
+                                const SizedBox(width: 12),
+                                actionButtons,
+                              ],
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _DoctorAdminCard extends StatelessWidget {
-  final DbUser doctor;
-  final int requestsCount;
-  final int acceptedRequestsCount;
-  final VoidCallback onUpdated;
-
-  const _DoctorAdminCard({
-    required this.doctor,
-    required this.requestsCount,
-    required this.acceptedRequestsCount,
-    required this.onUpdated,
-  });
-
-  Future<bool> _confirm(BuildContext context, String title, String message) async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: Text(title, style: const TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w700)),
-            content: Text(message, style: const TextStyle(fontFamily: 'Poppins', fontSize: 13)),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Annuler')),
-              FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Confirmer')),
-            ],
-          ),
-        ) ??
-        false;
-  }
+class _DetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+  const _DetailRow(this.label, this.value);
 
   @override
   Widget build(BuildContext context) {
-    final isPending = doctor.status == 'pending';
-    final isActive = doctor.status == 'active';
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isPending ? AppColors.warning.withValues(alpha: 0.4) : AppColors.borderSubtle,
-          width: isPending ? 1.5 : 1.0,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: isPending ? AppColors.warning.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: AppColors.brandTurquoise.withValues(alpha: 0.12),
-                child: const Icon(LucideIcons.stethoscope, color: AppColors.brandTurquoise, size: 24),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Dr. ${doctor.firstName} ${doctor.lastName}',
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: isPending
-                                ? AppColors.warning.withValues(alpha: 0.12)
-                                : (isActive ? AppColors.success.withValues(alpha: 0.12) : AppColors.error.withValues(alpha: 0.12)),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            isPending ? 'En attente' : (isActive ? 'Validé' : 'Suspendu'),
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: isPending ? AppColors.warning : (isActive ? AppColors.success : AppColors.error),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      doctor.specialty != null && doctor.specialty!.isNotEmpty
-                          ? doctor.specialty!
-                          : 'Médecin Généraliste',
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 12,
-                        color: AppColors.brandTurquoise,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(LucideIcons.badge_check, size: 12, color: AppColors.textMuted),
-                        const SizedBox(width: 4),
-                        Text(
-                          'N° Ordre : ${doctor.orderNumber ?? 'Non renseigné'}',
-                          style: const TextStyle(fontFamily: 'Poppins', fontSize: 11, color: AppColors.textSecondary),
-                        ),
-                        const SizedBox(width: 12),
-                        const Icon(LucideIcons.phone, size: 12, color: AppColors.textMuted),
-                        const SizedBox(width: 4),
-                        Text(
-                          doctor.phone,
-                          style: const TextStyle(fontFamily: 'Poppins', fontSize: 11, color: AppColors.textSecondary),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          SizedBox(
+            width: 140,
+            child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Colors.grey)),
           ),
-
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: AppColors.borderSubtle),
-          const SizedBox(height: 10),
-
-          // Métriques du médecin & Bouton d'action
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  _statBadge(LucideIcons.inbox, '$requestsCount demande(s)'),
-                  const SizedBox(width: 8),
-                  _statBadge(LucideIcons.check_check, '$acceptedRequestsCount acceptée(s)'),
-                ],
-              ),
-              if (isPending)
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    if (!await _confirm(context, 'Valider ce médecin ?', 'Le compte sera visible comme actif après validation.')) return;
-                    await DatabaseService().updateUserStatus(doctor.id, 'active');
-                    onUpdated();
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Row(
-                            children: [
-                              const Icon(LucideIcons.circle_check, color: Colors.white, size: 18),
-                              const SizedBox(width: 8),
-                              Text('Dr. ${doctor.lastName} a été validé avec succès !'),
-                            ],
-                          ),
-                          backgroundColor: AppColors.success,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      );
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.brandTurquoise,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  icon: const Icon(LucideIcons.shield_check, color: Colors.white, size: 16),
-                  label: const Text('Valider', style: TextStyle(fontFamily: 'Poppins', color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                )
-              else
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_horiz, size: 18, color: AppColors.textMuted),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  onSelected: (action) async {
-                    final db = DatabaseService();
-                    if (action == 'suspend') {
-                      if (!await _confirm(context, 'Suspendre ce médecin ?', 'Le médecin ne pourra plus se connecter tant que son compte restera suspendu.')) return;
-                      await db.updateUserStatus(doctor.id, 'suspended');
-                      onUpdated();
-                    } else if (action == 'activate') {
-                      await db.updateUserStatus(doctor.id, 'active');
-                      onUpdated();
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    if (isActive)
-                      const PopupMenuItem(
-                        value: 'suspend',
-                        child: Row(children: [Icon(LucideIcons.ban, size: 16, color: AppColors.error), SizedBox(width: 8), Text('Suspendre le médecin')]),
-                      )
-                    else
-                      const PopupMenuItem(
-                        value: 'activate',
-                        child: Row(children: [Icon(LucideIcons.circle_check, size: 16, color: AppColors.success), SizedBox(width: 8), Text('Réactiver')]),
-                      ),
-                  ],
-                ),
-            ],
+          Expanded(
+            child: Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF0F172A))),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statBadge(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceSubtle,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 12, color: AppColors.textMuted),
-          const SizedBox(width: 4),
-          Text(label, style: const TextStyle(fontFamily: 'Poppins', fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
         ],
       ),
     );

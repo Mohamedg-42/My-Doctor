@@ -227,9 +227,13 @@ class _DoctorMessagesTabState extends State<DoctorMessagesTab>
             ),
           ),
           const SizedBox(width: 10),
-          Text(
-            '$totalUnread message${totalUnread > 1 ? 's' : ''} non lu${totalUnread > 1 ? 's' : ''} de vos patients',
-            style: const TextStyle(fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
+          Expanded(
+            child: Text(
+              '$totalUnread message${totalUnread > 1 ? 's' : ''} non lu${totalUnread > 1 ? 's' : ''} de vos patients',
+              style: const TextStyle(fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
@@ -312,37 +316,39 @@ class _DoctorMessagesTabState extends State<DoctorMessagesTab>
           color: AppColors.backgroundCard,
           borderRadius: BorderRadius.only(topLeft: Radius.circular(28), topRight: Radius.circular(28)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.backgroundGrey, borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 20),
-            const Text('Filtrer les messages', style: TextStyle(fontFamily: 'Poppins', fontSize: 16, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              children: ['Tous', 'Non lus', 'En ligne'].map((label) =>
-                ActionChip(
-                  label: Text(label, style: const TextStyle(fontFamily: 'Poppins')),
-                  onPressed: () => Navigator.pop(context),
-                  backgroundColor: AppColors.primaryUltraLight,
-                ),
-              ).toList(),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                child: const Text('Appliquer', style: TextStyle(fontFamily: 'Poppins', color: Colors.white, fontWeight: FontWeight.w600)),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.backgroundGrey, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 20),
+              const Text('Filtrer les messages', style: TextStyle(fontFamily: 'Poppins', fontSize: 16, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                children: ['Tous', 'Non lus', 'En ligne'].map((label) =>
+                  ActionChip(
+                    label: Text(label, style: const TextStyle(fontFamily: 'Poppins')),
+                    onPressed: () => Navigator.pop(context),
+                    backgroundColor: AppColors.primaryUltraLight,
+                  ),
+                ).toList(),
               ),
-            ),
-          ],
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: const Text('Appliquer', style: TextStyle(fontFamily: 'Poppins', color: Colors.white, fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

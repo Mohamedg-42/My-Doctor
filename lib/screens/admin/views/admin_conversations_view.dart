@@ -1,9 +1,15 @@
+// lib/screens/admin/views/admin_conversations_view.dart
+//
+// Vue de supervision des conversations et audit des quotas de messagerie pour l'administrateur.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../providers/message_provider.dart';
+import '../../../services/database_service.dart';
+import '../components/admin_empty_state.dart';
 
 class AdminConversationsView extends StatefulWidget {
   const AdminConversationsView({super.key});
@@ -13,8 +19,9 @@ class AdminConversationsView extends StatefulWidget {
 }
 
 class _AdminConversationsViewState extends State<AdminConversationsView> {
-  final _searchCtrl = TextEditingController();
   String _searchQuery = '';
+  final TextEditingController _searchCtrl = TextEditingController();
+  final DateFormat _dateFormat = DateFormat('dd/MM/yyyy HH:mm');
 
   @override
   void dispose() {
@@ -22,70 +29,144 @@ class _AdminConversationsViewState extends State<AdminConversationsView> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final msgProvider = context.watch<MessageProvider>();
-    final allConvs = msgProvider.allConversations;
+  Future<void> _resetQuota(String patientId, String patientName) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Recharger le quota patient'),
+        content: Text('Voulez-vous réinitialiser le quota de $patientName à 10 messages gratuits ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.brandBlue, foregroundColor: Colors.white),
+            child: const Text('Recharger (10 msgs)'),
+          ),
+        ],
+      ),
+    );
 
-    final filtered = allConvs.where((c) {
-      if (_searchQuery.isNotEmpty) {
-        final q = _searchQuery.toLowerCase();
-        final matchPatient = c.patientName.toLowerCase().contains(q);
-        final matchDoctor = c.doctorName.toLowerCase().contains(q);
-        final matchSpec = c.doctorSpecialty.toLowerCase().contains(q);
-        return matchPatient || matchDoctor || matchSpec;
-      }
-      return true;
-    }).toList();
+    if (confirm != true || !mounted) return;
 
-    return Column(
-      children: [
-        // ── Avertissement Confidentialité Médicale ────────────────────────
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          color: AppColors.selectedBg,
-          child: const Row(
-            children: [
-              Icon(LucideIcons.shield_alert, color: AppColors.brandBlue, size: 18),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Déontologie & Secret Médical : Seules les métadonnées (participants, volumes, horodatages) sont affichées.',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    color: AppColors.brandNavy,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+    await DatabaseService().resetPatientMessageUsage(patientId, 10);
+    setState(() {});
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Quota de messages rechargé pour $patientName.'), backgroundColor: AppColors.success),
+    );
+  }
+
+  void _showConversationAudit(ChatConversation conv, List<ChatMessage> messages, PatientMessageUsage usage) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(LucideIcons.messages_square, color: AppColors.brandBlue),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Audit Conversation : ${conv.patientName} & ${conv.doctorName}',
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
               ),
-            ],
+            ),
+          ],
+        ),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _DetailRow('Identifiant', conv.id),
+                _DetailRow('Patient', '${conv.patientName} (${conv.patientId})'),
+                _DetailRow('Médecin', '${conv.doctorName} (${conv.doctorSpecialty})'),
+                _DetailRow('Total messages', '${messages.length}'),
+                _DetailRow('Quota patient consommé', '${usage.freeMessagesUsed} / ${usage.freeMessagesLimit}'),
+                _DetailRow('Quota patient restant', '${usage.remaining}'),
+                _DetailRow('Statut conversation', conv.isLocked ? 'Verrouillée' : 'Active'),
+                const SizedBox(height: 16),
+                const Text('Derniers messages échangés (Métadonnées & Aperçu) :', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                const SizedBox(height: 8),
+                if (messages.isEmpty)
+                  const Text('Aucun message échangé', style: TextStyle(color: Colors.grey, fontSize: 12))
+                else
+                  ...messages.reversed.take(5).map((m) => Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              m.isFromDoctor ? '👨‍⚕️ Dr : ' : '👤 Patient : ',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                            ),
+                            Expanded(
+                              child: Text(m.text, style: const TextStyle(fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              _dateFormat.format(m.time),
+                              style: const TextStyle(fontSize: 9, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      )),
+              ],
+            ),
           ),
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer')),
+        ],
+      ),
+    );
+  }
 
-        // ── Recherche ───────────────────────────────────────────────────
-        Container(
-          color: Colors.white,
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-          child: Container(
-            height: 44,
+  @override
+  Widget build(BuildContext context) {
+    final db = DatabaseService();
+    final messageProvider = context.watch<MessageProvider>();
+    final conversations = messageProvider.conversations;
+
+    final filtered = conversations.where((c) {
+      final q = _searchQuery.toLowerCase();
+      return q.isEmpty ||
+          c.patientName.toLowerCase().contains(q) ||
+          c.doctorName.toLowerCase().contains(q) ||
+          c.doctorSpecialty.toLowerCase().contains(q);
+    }).toList();
+
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 46,
             decoration: BoxDecoration(
-              color: AppColors.surfaceSubtle,
+              color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.borderSubtle),
+              border: Border.all(color: Colors.grey.shade200),
             ),
             child: TextField(
               controller: _searchCtrl,
-              onChanged: (v) => setState(() => _searchQuery = v.trim()),
+              onChanged: (v) => setState(() => _searchQuery = v),
               style: const TextStyle(fontFamily: 'Poppins', fontSize: 13),
               decoration: InputDecoration(
-                hintText: 'Rechercher par patient ou médecin...',
-                hintStyle: const TextStyle(fontFamily: 'Poppins', fontSize: 12, color: AppColors.textMuted),
-                prefixIcon: const Icon(LucideIcons.search, size: 18, color: AppColors.textMuted),
+                hintText: 'Rechercher une conversation par patient ou praticien...',
+                hintStyle: TextStyle(fontFamily: 'Poppins', fontSize: 12, color: Colors.grey.shade400),
+                prefixIcon: const Icon(LucideIcons.search, size: 18, color: Colors.grey),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(LucideIcons.x, size: 16),
+                        icon: const Icon(Icons.clear, size: 16),
                         onPressed: () {
                           _searchCtrl.clear();
                           setState(() => _searchQuery = '');
@@ -93,215 +174,142 @@ class _AdminConversationsViewState extends State<AdminConversationsView> {
                       )
                     : null,
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 11),
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
               ),
             ),
           ),
-        ),
+          const SizedBox(height: 20),
 
-        // ── Compteur ───────────────────────────────────────────────────
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: AppColors.surfaceSubtle,
-          child: Text(
-            '${filtered.length} conversation(s) active(s) • ${msgProvider.totalMessagesCount} message(s) au total',
-            style: const TextStyle(fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
-          ),
-        ),
+          Expanded(
+            child: filtered.isEmpty
+                ? const AdminEmptyState(
+                    icon: LucideIcons.message_square_off,
+                    title: 'Aucune conversation trouvée',
+                    message: 'Aucune conversation active ne correspond à vos filtres.',
+                  )
+                : ListView.separated(
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, i) {
+                      final conv = filtered[i];
+                      final messages = messageProvider.messagesOf(conv.id);
+                      final lastMsg = messageProvider.lastMessageOf(conv.id);
+                      final usage = db.getPatientMessageUsage(conv.patientId);
 
-        // ── Liste des conversations ────────────────────────────────────
-        Expanded(
-          child: filtered.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(LucideIcons.messages_square, size: 48, color: AppColors.textMuted.withValues(alpha: 0.5)),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Aucune conversation enregistrée',
-                        style: TextStyle(fontFamily: 'Poppins', fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
-                      ),
-                    ],
+                      return Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.brandBlue.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(LucideIcons.message_circle, color: AppColors.brandBlue, size: 22),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          '${conv.patientName} & ${conv.doctorName}',
+                                          style: const TextStyle(
+                                            fontFamily: 'Poppins',
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF0F172A),
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: (usage.isLimitReached ? AppColors.error : AppColors.success)
+                                              .withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          usage.isLimitReached ? 'Quota atteint' : 'Quota actif (${usage.remaining} restants)',
+                                          style: TextStyle(
+                                            fontFamily: 'Poppins',
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: usage.isLimitReached ? AppColors.error : AppColors.success,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${messages.length} message(s) échangé(s) • Dr. ${conv.doctorName} (${conv.doctorSpecialty})',
+                                    style: TextStyle(fontFamily: 'Poppins', fontSize: 12, color: Colors.grey.shade600),
+                                  ),
+                                  if (lastMsg != null) ...[
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      'Dernier message : "${lastMsg.text}" (${_dateFormat.format(lastMsg.time)})',
+                                      style: TextStyle(fontFamily: 'Poppins', fontSize: 11, color: Colors.grey.shade500),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(LucideIcons.rotate_ccw, size: 18, color: AppColors.brandBlue),
+                                  tooltip: 'Réinitialiser quota (10 msgs)',
+                                  onPressed: () => _resetQuota(conv.patientId, conv.patientName),
+                                ),
+                                IconButton(
+                                  icon: const Icon(LucideIcons.eye, size: 18, color: Color(0xFF475569)),
+                                  tooltip: 'Audit conversation',
+                                  onPressed: () => _showConversationAudit(conv, messages, usage),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (_, i) {
-                    final conv = filtered[i];
-                    final msgs = msgProvider.messagesOf(conv.id);
-                    final lastMsg = msgProvider.lastMessageOf(conv.id);
-
-                    return _ConversationAdminCard(
-                      conv: conv,
-                      messagesCount: msgs.length,
-                      lastMessage: lastMsg,
-                    );
-                  },
-                ),
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _ConversationAdminCard extends StatelessWidget {
-  final ChatConversation conv;
-  final int messagesCount;
-  final ChatMessage? lastMessage;
-
-  const _ConversationAdminCard({
-    required this.conv,
-    required this.messagesCount,
-    required this.lastMessage,
-  });
+class _DetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+  const _DetailRow(this.label, this.value);
 
   @override
   Widget build(BuildContext context) {
-    final lastTimeStr = lastMessage != null
-        ? DateFormat('dd/MM HH:mm').format(lastMessage!.time)
-        : 'Aucun message';
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderSubtle),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'ID : ${conv.id}',
-                style: const TextStyle(fontFamily: 'Poppins', fontSize: 10, color: AppColors.textMuted),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.brandBlue.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(LucideIcons.message_circle, size: 12, color: AppColors.brandBlue),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$messagesCount message(s)',
-                      style: const TextStyle(fontFamily: 'Poppins', fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.brandBlue),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Binôme Patient ↔ Médecin
-          Row(
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 16,
-                      backgroundColor: AppColors.brandBlue.withValues(alpha: 0.12),
-                      child: const Icon(LucideIcons.user, size: 16, color: AppColors.brandBlue),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Patient', style: TextStyle(fontFamily: 'Poppins', fontSize: 10, color: AppColors.textMuted)),
-                          Text(
-                            conv.patientName,
-                            style: const TextStyle(fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(LucideIcons.arrow_left_right, size: 16, color: AppColors.textMuted),
-              Expanded(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          const Text('Médecin', style: TextStyle(fontFamily: 'Poppins', fontSize: 10, color: AppColors.textMuted)),
-                          Text(
-                            conv.doctorName,
-                            style: const TextStyle(fontFamily: 'Poppins', fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.brandTurquoise),
-                            textAlign: TextAlign.end,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    CircleAvatar(
-                      radius: 16,
-                      backgroundColor: AppColors.brandTurquoise.withValues(alpha: 0.12),
-                      child: const Icon(LucideIcons.stethoscope, size: 16, color: AppColors.brandTurquoise),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: AppColors.borderSubtle),
-          const SizedBox(height: 8),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(LucideIcons.clock, size: 12, color: AppColors.textMuted),
-                  const SizedBox(width: 4),
-                  Text('Dernière activité : $lastTimeStr', style: const TextStyle(fontFamily: 'Poppins', fontSize: 10, color: AppColors.textMuted)),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: conv.isLocked ? AppColors.error.withValues(alpha: 0.1) : AppColors.success.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  conv.isLocked ? 'Verrouillée' : 'Active',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: conv.isLocked ? AppColors.error : AppColors.success,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
         ],
       ),
     );

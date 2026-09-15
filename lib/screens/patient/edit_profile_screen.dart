@@ -10,6 +10,8 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/constants/ivory_coast_locations.dart';
+import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/database_service.dart';
 
@@ -33,6 +35,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   DateTime? _selectedBirthDate;
   String? _selectedGender;
+  String _selectedCity = 'Abidjan';
+  String _selectedCommune = 'Cocody';
   bool _isLoading = false;
   String? _profileImageBase64;
 
@@ -45,12 +49,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       text: (user?.firstName != null && user!.firstName != 'Patient') ? user.firstName : '',
     );
     _phoneCtrl = TextEditingController(text: user?.phone ?? '');
-    _cityCtrl = TextEditingController(text: user?.city ?? 'Abidjan');
-    _communeCtrl = TextEditingController(text: user?.commune ?? '');
+    final initialCity = user?.city ?? 'Abidjan';
+    _selectedCity = IvoryCoastLocations.cities.contains(initialCity) ? initialCity : 'Abidjan';
+    _cityCtrl = TextEditingController(text: _selectedCity);
+
+    final availableCommunes = IvoryCoastLocations.getCommunes(_selectedCity);
+    final initialCommune = user?.commune;
+    if (initialCommune != null && availableCommunes.contains(initialCommune)) {
+      _selectedCommune = initialCommune;
+    } else {
+      _selectedCommune = availableCommunes.first;
+    }
+    _communeCtrl = TextEditingController(text: _selectedCommune);
+
     _professionCtrl = TextEditingController(text: user?.profession ?? '');
     _cmuCtrl = TextEditingController(text: user?.cmuNumber ?? '');
 
     _selectedBirthDate = user?.birthDate;
+    if (_selectedBirthDate == null && user?.id != null) {
+      final dbUser = DatabaseService().getUserById(user!.id);
+      if (dbUser?.birthDate != null) {
+        _selectedBirthDate = UserModel.parseFlexibleDate(dbUser!.birthDate);
+      }
+    }
     String birthDateStr = '';
     if (_selectedBirthDate != null) {
       birthDateStr =
@@ -73,6 +94,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _professionCtrl.dispose();
     _cmuCtrl.dispose();
     super.dispose();
+  }
+
+  void _onCityChanged(String? newCity) {
+    if (newCity == null) return;
+    setState(() {
+      _selectedCity = newCity;
+      _cityCtrl.text = newCity;
+      final availableCommunes = IvoryCoastLocations.getCommunes(newCity);
+      if (!availableCommunes.contains(_selectedCommune)) {
+        _selectedCommune = availableCommunes.first;
+        _communeCtrl.text = _selectedCommune;
+      }
+    });
+  }
+
+  void _onCommuneChanged(String? newCommune) {
+    if (newCommune == null) return;
+    setState(() {
+      _selectedCommune = newCommune;
+      _communeCtrl.text = newCommune;
+    });
   }
 
   Future<void> _pickProfileImage() async {
@@ -104,34 +146,46 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _selectBirthDate() async {
-    final now = DateTime.now();
-    final initial = _selectedBirthDate ?? DateTime(now.year - 25, 1, 1);
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initial.isBefore(now) ? initial : now,
-      firstDate: DateTime(1920),
-      lastDate: now,
-      locale: const Locale('fr', 'FR'),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.primary,
-              onPrimary: Colors.white,
-              onSurface: AppColors.textPrimary,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
+    try {
+      final now = DateTime.now();
+      DateTime initial = _selectedBirthDate ?? DateTime(now.year - 25, 1, 1);
+      final firstDate = DateTime(1900);
+      final lastDate = now;
 
-    if (picked != null) {
-      setState(() {
-        _selectedBirthDate = picked;
-        _birthDateCtrl.text =
-            '${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}';
-      });
+      if (initial.isBefore(firstDate)) initial = firstDate;
+      if (initial.isAfter(lastDate)) initial = lastDate;
+
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: initial,
+        firstDate: firstDate,
+        lastDate: lastDate,
+        helpText: 'SÉLECTIONNEZ VOTRE DATE DE NAISSANCE',
+        cancelText: 'ANNULER',
+        confirmText: 'VALIDER',
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.light(
+                primary: AppColors.primary,
+                onPrimary: Colors.white,
+                onSurface: AppColors.textPrimary,
+              ),
+            ),
+            child: child!,
+          );
+        },
+      );
+
+      if (picked != null && mounted) {
+        setState(() {
+          _selectedBirthDate = picked;
+          _birthDateCtrl.text =
+              '${picked!.day.toString().padLeft(2, '0')}/${picked!.month.toString().padLeft(2, '0')}/${picked!.year}';
+        });
+      }
+    } catch (e) {
+      debugPrint('Erreur sélection date de naissance: $e');
     }
   }
 
@@ -150,6 +204,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       final db = DatabaseService();
 
+      final dateToSave =
+          _selectedBirthDate ?? UserModel.parseFlexibleDate(_birthDateCtrl.text);
+      final String? birthDateStr = dateToSave != null
+          ? '${dateToSave.day.toString().padLeft(2, '0')}/${dateToSave.month.toString().padLeft(2, '0')}/${dateToSave.year}'
+          : (_birthDateCtrl.text.trim().isNotEmpty ? _birthDateCtrl.text.trim() : null);
+
       // Mise à jour des informations patient
       await db.updateUserProfile(
         userId: userId,
@@ -160,7 +220,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         commune: _communeCtrl.text.trim(),
         profession: _professionCtrl.text.trim(),
         cmuNumber: _cmuCtrl.text.trim().isNotEmpty ? _cmuCtrl.text.trim() : null,
-        birthDate: _selectedBirthDate?.toIso8601String(),
+        birthDate: birthDateStr,
         gender: _selectedGender,
         avatarBase64: _profileImageBase64,
       );
@@ -516,28 +576,54 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     const SizedBox(height: 16),
 
                     // Ville
-                    TextFormField(
-                      controller: _cityCtrl,
+                    DropdownButtonFormField<String>(
+                      value: IvoryCoastLocations.cities.contains(_selectedCity) ? _selectedCity : IvoryCoastLocations.cities.first,
+                      isExpanded: true,
+                      icon: const Icon(LucideIcons.chevron_down, size: 18, color: AppColors.primary),
                       decoration: InputDecoration(
-                        labelText: 'Ville',
-                        hintText: 'Ex: Abidjan',
+                        labelText: 'Ville de résidence',
                         prefixIcon: const Icon(LucideIcons.map_pin, size: 20, color: AppColors.primary),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       ),
+                      items: IvoryCoastLocations.cities.map((city) {
+                        return DropdownMenuItem<String>(
+                          value: city,
+                          child: Text(
+                            city,
+                            style: const TextStyle(fontFamily: 'Poppins', fontSize: 14),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: _onCityChanged,
                     ),
                     const SizedBox(height: 16),
 
                     // Commune / Quartier
-                    TextFormField(
-                      controller: _communeCtrl,
+                    DropdownButtonFormField<String>(
+                      value: IvoryCoastLocations.getCommunes(_selectedCity).contains(_selectedCommune)
+                          ? _selectedCommune
+                          : IvoryCoastLocations.getCommunes(_selectedCity).first,
+                      isExpanded: true,
+                      icon: const Icon(LucideIcons.chevron_down, size: 18, color: AppColors.primary),
                       decoration: InputDecoration(
                         labelText: 'Commune / Quartier',
-                        hintText: 'Ex: Cocody, Angré 8ème Tranche',
                         prefixIcon: const Icon(LucideIcons.building, size: 20, color: AppColors.primary),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       ),
+                      items: IvoryCoastLocations.getCommunes(_selectedCity).map((commune) {
+                        return DropdownMenuItem<String>(
+                          value: commune,
+                          child: Text(
+                            commune,
+                            style: const TextStyle(fontFamily: 'Poppins', fontSize: 14),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: _onCommuneChanged,
                     ),
                   ],
                 ),

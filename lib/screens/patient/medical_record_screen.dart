@@ -110,26 +110,28 @@ class _MedicalRecordScreenState extends State<MedicalRecordScreen> with SingleTi
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Nouvel antécédent'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: typeCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Type',
-                hintText: 'Ex: Diabète, Hypertension...',
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: typeCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Type',
+                  hintText: 'Ex: Diabète, Hypertension...',
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: descCtrl,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-                hintText: 'Détails supplémentaires...',
+              const SizedBox(height: 16),
+              TextField(
+                controller: descCtrl,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  hintText: 'Détails supplémentaires...',
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -159,26 +161,28 @@ class _MedicalRecordScreenState extends State<MedicalRecordScreen> with SingleTi
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Nouvelle allergie'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nomCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Allergène',
-                hintText: 'Ex: Pénicilline, Arachides...',
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nomCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Allergène',
+                  hintText: 'Ex: Pénicilline, Arachides...',
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: reactionCtrl,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Réaction',
-                hintText: 'Description de la réaction...',
+              const SizedBox(height: 16),
+              TextField(
+                controller: reactionCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Réaction',
+                  hintText: 'Description de la réaction...',
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -534,9 +538,13 @@ class _ExamenCard extends StatelessWidget {
               children: [
                 const Icon(Icons.location_on, size: 16, color: AppColors.textSecondary),
                 const SizedBox(width: 4),
-                Text(
-                  lieu,
-                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                Expanded(
+                  child: Text(
+                    lieu,
+                    style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),
@@ -551,15 +559,19 @@ class _ExamenCard extends StatelessWidget {
                 children: [
                   const Icon(Icons.check_circle, color: AppColors.success, size: 18),
                   const SizedBox(width: 8),
-                  Text(
-                    resultats,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.success,
+                  Expanded(
+                    child: Text(
+                      resultats,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.success,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   TextButton(
                     onPressed: () {},
                     child: const Text('Voir'),

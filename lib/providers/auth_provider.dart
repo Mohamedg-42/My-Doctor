@@ -100,7 +100,7 @@ class AuthProvider extends ChangeNotifier {
     createdAt: u.createdAt,
     lastLoginAt: u.lastLoginAt,
     cmuNumber: u.cmuNumber,
-    birthDate: u.birthDate != null ? DateTime.tryParse(u.birthDate!) : null,
+    birthDate: UserModel.parseFlexibleDate(u.birthDate),
     gender: u.gender,
     profession: u.profession,
     commune: u.commune,
@@ -127,14 +127,14 @@ class AuthProvider extends ChangeNotifier {
         avatarBase64: u.avatarBase64,  // ← photo locale transmise
         latitude: 5.3484,
         longitude: -4.0107,
-        address: 'Abidjan, Côte d\'Ivoire',
-        city: 'Abidjan',
+        address: u.commune != null ? '${u.commune}, ${u.city ?? "Abidjan"}' : 'Abidjan, Côte d\'Ivoire',
+        city: u.city ?? 'Abidjan',
         rating: 0.0,
         reviewCount: 0,
         patientCount: 0,
-        experienceYears: 0,
+        experienceYears: u.experienceYears ?? 0,
         successRate: 0.0,
-        consultationPrice: 15000,
+        consultationPrice: u.consultationPrice ?? 15000,
         isAvailable: true,
         isVerified: false,
         isOnline: true,
@@ -285,6 +285,11 @@ class AuthProvider extends ChangeNotifier {
     String? email,
     String? orderNumber,
     String? specialty,
+    String? bio,
+    String? city,
+    String? commune,
+    int? experienceYears,
+    double? consultationPrice,
     String? avatarBase64,
   }) async {
     _isLoading = true;
@@ -312,6 +317,11 @@ class AuthProvider extends ChangeNotifier {
         password: password,
         orderNumber: orderNumber,
         specialty: specialty,
+        bio: bio,
+        city: city,
+        commune: commune,
+        experienceYears: experienceYears,
+        consultationPrice: consultationPrice,
         avatarBase64: avatarBase64,
         status: manualApproval ? 'pending' : 'active',
       );
@@ -394,10 +404,17 @@ class AuthProvider extends ChangeNotifier {
       // Si le profil n'a pas de date enregistrée, on passe (inscription ancienne).
       if (dbUser.birthDate != null && dbUser.birthDate!.isNotEmpty &&
           birthDate != null && birthDate.isNotEmpty) {
-        // Normaliser : enlever les espaces, comparer en ignorant la casse
-        final storedNorm  = dbUser.birthDate!.trim().replaceAll(' ', '');
-        final enteredNorm = birthDate.trim().replaceAll(' ', '');
-        if (storedNorm != enteredNorm) {
+        final d1 = UserModel.parseFlexibleDate(dbUser.birthDate);
+        final d2 = UserModel.parseFlexibleDate(birthDate);
+        final bool matches;
+        if (d1 != null && d2 != null) {
+          matches = (d1.year == d2.year && d1.month == d2.month && d1.day == d2.day);
+        } else {
+          final storedNorm = dbUser.birthDate!.trim().replaceAll(' ', '');
+          final enteredNorm = birthDate.trim().replaceAll(' ', '');
+          matches = (storedNorm == enteredNorm);
+        }
+        if (!matches) {
           _errorMessage = 'Date de naissance incorrecte. Vérifiez la date saisie.';
           _isLoading = false;
           notifyListeners();

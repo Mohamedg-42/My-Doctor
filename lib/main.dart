@@ -13,10 +13,14 @@ import 'providers/patient_provider.dart';
 import 'providers/doctor_provider.dart';
 import 'providers/app_provider.dart';
 import 'providers/cmu_provider.dart';
+import 'providers/patient_subscription_provider.dart';
 import 'providers/message_provider.dart';
 import 'providers/treating_request_provider.dart';
+import 'screens/patient/patient_subscription_screen.dart';
+import 'screens/patient/cmu_screen.dart';
 import 'screens/auth/cover_screen.dart';
 import 'screens/auth/splash_screen.dart';
+import 'widgets/common/app_loading_screen.dart';
 import 'screens/auth/welcome_screen.dart';
 import 'screens/auth/welcome_screen_original.dart';
 import 'screens/auth/choose_register_screen.dart';
@@ -27,7 +31,6 @@ import 'screens/auth/doctor_register_screen.dart';
 import 'screens/auth/otp_screen.dart';
 import 'screens/patient/patient_home_screen.dart';
 import 'screens/doctor/doctor_home_screen.dart';
-import 'screens/admin/admin_dashboard_screen.dart';
 import 'screens/patient/doctor_profile_screen.dart';
 import 'screens/patient/security_privacy_screen.dart';
 import 'screens/patient/help_faq_screen.dart';
@@ -36,6 +39,8 @@ import 'screens/patient/edit_profile_screen.dart' as patient_edit_profile;
 import 'screens/doctor/manage_slots_screen.dart';
 import 'screens/doctor/doctor_payment_screen.dart';
 import 'screens/doctor/edit_profile_screen.dart' as doctor_edit_profile;
+import 'screens/auth/admin_login_screen.dart';
+import 'screens/admin/admin_dashboard_screen.dart';
 import 'core/routing/auth_guard.dart';
 import 'core/routing/route_persistence_service.dart';
 import 'services/supabase_service.dart';
@@ -45,30 +50,38 @@ import 'models/doctor_model.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Gestionnaire global d'erreurs : adoucit les avertissements de layout overflow
+  FlutterError.onError = (FlutterErrorDetails details) {
+    final bool isOverflow = details.toString().contains('overflowed by') ||
+        details.exceptionAsString().contains('overflowed by') ||
+        details.exceptionAsString().contains('A RenderFlex overflowed');
+    if (isOverflow) {
+      debugPrint('⚠️ [Layout Overflow prévenu] : ${details.summary}');
+      return;
+    }
+    FlutterError.presentError(details);
+  };
+
   if (kDebugMode) {
-    debugPrint('⚠️ MODE DÉGRADÉ : Firebase désactivé - Chat et notifications indisponibles');
+    debugPrint(
+        '⚠️ MODE DÉGRADÉ : Firebase désactivé - Chat et notifications indisponibles');
   }
 
-  // 1. Initialiser la base de données locale (Hive)
-  await DatabaseService().initialize();
+  // 1. Initialisations asynchrones parallèles pour un démarrage ultra-rapide
+  await Future.wait([
+    DatabaseService().initialize(),
+    SupabaseService().initialize(),
+    RoutePersistenceService.init(),
+    initializeDateFormatting('fr_FR', null),
+  ]);
 
-  // 2. Initialiser la connexion PostgreSQL (Supabase)
-  await SupabaseService().initialize();
-
-  // 3. Initialiser la persistance de route et d'onglets
-  await RoutePersistenceService.init();
-
-  // 3. Initialiser AuthProvider et restaurer la session AVANT runApp
-  // Garantit zéro écran blanc de chargement lors du rafraîchissement navigateur (F5)
+  // 2. Initialiser AuthProvider et la box Hive des demandes traitant en parallèle
   final authProvider = AuthProvider();
-  await authProvider.initSession();
-
-  // 4. Initialiser la box Hive des demandes traitant
   final treatingRequestProvider = TreatingRequestProvider();
-  await treatingRequestProvider.initialize();
-
-  // Formatage des dates
-  await initializeDateFormatting('fr_FR', null);
+  await Future.wait([
+    authProvider.initSession(),
+    treatingRequestProvider.initialize(),
+  ]);
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -84,12 +97,10 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  final initialRoute = RoutePersistenceService.getInitialRoute(authProvider);
-
   runApp(AlloDocteurApp(
     authProvider: authProvider,
     treatingRequestProvider: treatingRequestProvider,
-    initialRoute: initialRoute,
+    initialRoute: '/splash',
   ));
 }
 
@@ -108,7 +119,8 @@ class AlloDocteurApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effectiveAuth = authProvider ?? AuthProvider();
-    final effectiveRoute = initialRoute ?? RoutePersistenceService.getInitialRoute(effectiveAuth);
+    final effectiveRoute =
+        initialRoute ?? RoutePersistenceService.getInitialRoute(effectiveAuth);
 
     return MultiProvider(
       providers: [
@@ -129,13 +141,28 @@ class AlloDocteurApp extends StatelessWidget {
             return provider;
           },
         ),
-        ChangeNotifierProvider<TreatingRequestProvider>.value(value: treatingRequestProvider),
+        // PatientSubscriptionProvider synchronise l'abonnement du patient connecté
+        ChangeNotifierProxyProvider<AuthProvider, PatientSubscriptionProvider>(
+          create: (_) => PatientSubscriptionProvider(),
+          update: (_, auth, sub) {
+            final provider = sub ?? PatientSubscriptionProvider();
+            if (auth.isAuthenticated && auth.currentUser != null) {
+              provider.initFromUser(auth.currentUser!);
+            } else {
+              provider.reset();
+            }
+            return provider;
+          },
+        ),
+        ChangeNotifierProvider<TreatingRequestProvider>.value(
+            value: treatingRequestProvider),
         ChangeNotifierProvider(create: (_) => MessageProvider()),
       ],
       child: Consumer<AppProvider>(
         builder: (context, app, _) => MediaQuery(
           data: MediaQuery.of(context).copyWith(
-            textScaler: TextScaler.linear(app.textScaleFactor),
+            textScaler:
+                TextScaler.linear(app.textScaleFactor.clamp(0.85, 1.15)),
           ),
           child: MaterialApp(
             title: 'My Doctor',
@@ -146,33 +173,97 @@ class AlloDocteurApp extends StatelessWidget {
             initialRoute: effectiveRoute,
             navigatorObservers: [AppRouteObserver()],
             routes: {
-              '/': (_) => const GuestOnlyRoute(child: WelcomeScreenOriginal()),
-              '/welcome': (_) => const GuestOnlyRoute(child: WelcomeScreenOriginal()),
+              '/': (_) => const SplashScreen(),
+              '/loading': (_) => const AppLoadingScreen(),
+              '/welcome': (_) =>
+                  const GuestOnlyRoute(child: WelcomeScreenOriginal()),
               '/splash': (_) => const SplashScreen(),
               '/cover': (_) => const GuestOnlyRoute(child: CoverScreen()),
-              '/auth/choose-register': (_) => const GuestOnlyRoute(child: ChooseRegisterScreen()),
-              '/auth/patient/login': (_) => const GuestOnlyRoute(child: PatientLoginScreen()),
-              '/auth/doctor/login': (_) => const GuestOnlyRoute(child: DoctorLoginScreen()),
-              '/auth/patient/register': (_) => const GuestOnlyRoute(child: PatientRegisterScreen()),
-              '/auth/doctor/register': (_) => const GuestOnlyRoute(child: DoctorRegisterScreen()),
-              '/patient/home': (_) => const AuthenticatedRoute(requiredRole: UserRole.patient, child: PatientHomeScreen()),
-              '/doctor/home': (_) => const AuthenticatedRoute(requiredRole: UserRole.doctor, child: DoctorHomeScreen()),
-              '/admin': (_) => const AdminDashboardScreen(initialTab: 0),
-              '/admin/users': (_) => const AdminDashboardScreen(initialTab: 1),
-              '/admin/doctors': (_) => const AdminDashboardScreen(initialTab: 2),
-              '/admin/patients': (_) => const AdminDashboardScreen(initialTab: 3),
-              '/admin/requests': (_) => const AdminDashboardScreen(initialTab: 4),
-              '/admin/appointments': (_) => const AdminDashboardScreen(initialTab: 5),
-              '/admin/conversations': (_) => const AdminDashboardScreen(initialTab: 6),
+              '/auth/choose-register': (_) =>
+                  const GuestOnlyRoute(child: ChooseRegisterScreen()),
+              '/auth/patient/login': (_) =>
+                  const GuestOnlyRoute(child: PatientLoginScreen()),
+              '/auth/doctor/login': (_) =>
+                  const GuestOnlyRoute(child: DoctorLoginScreen()),
+              '/auth/patient/register': (_) =>
+                  const GuestOnlyRoute(child: PatientRegisterScreen()),
+              '/auth/doctor/register': (_) =>
+                  const GuestOnlyRoute(child: DoctorRegisterScreen()),
+              '/patient/home': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.patient, child: PatientHomeScreen()),
+              '/doctor/home': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.doctor, child: DoctorHomeScreen()),
+              // Abonnements Santé & Carte CMU-CI
+              '/patient/subscription': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.patient,
+                  child: PatientSubscriptionScreen()),
+              '/patient/cmu': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.patient, child: CmuScreen()),
+              '/patient/my-card': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.patient, child: CmuScreen()),
+              '/cmu': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.patient, child: CmuScreen()),
               // Sous-écrans patients persistants
-              '/patient/security-privacy': (_) => const AuthenticatedRoute(requiredRole: UserRole.patient, child: SecurityPrivacyScreen()),
-              '/patient/help-faq': (_) => const AuthenticatedRoute(requiredRole: UserRole.patient, child: HelpFaqScreen()),
-              '/patient/contact-support': (_) => const AuthenticatedRoute(requiredRole: UserRole.patient, child: ContactSupportScreen()),
-              '/patient/edit-profile': (_) => const AuthenticatedRoute(requiredRole: UserRole.patient, child: patient_edit_profile.EditProfileScreen()),
+              '/patient/security-privacy': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.patient,
+                  child: SecurityPrivacyScreen()),
+              '/patient/help-faq': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.patient, child: HelpFaqScreen()),
+              '/patient/contact-support': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.patient,
+                  child: ContactSupportScreen()),
+              '/patient/edit-profile': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.patient,
+                  child: patient_edit_profile.EditProfileScreen()),
               // Sous-écrans médecins persistants
-              '/doctor/manage-slots': (_) => const AuthenticatedRoute(requiredRole: UserRole.doctor, child: ManageSlotsScreen()),
-              '/doctor/payments': (_) => const AuthenticatedRoute(requiredRole: UserRole.doctor, child: DoctorPaymentScreen()),
-              '/doctor/edit-profile': (_) => const AuthenticatedRoute(requiredRole: UserRole.doctor, child: doctor_edit_profile.EditProfileScreen()),
+              '/doctor/manage-slots': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.doctor, child: ManageSlotsScreen()),
+              '/doctor/payments': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.doctor, child: DoctorPaymentScreen()),
+              '/doctor/edit-profile': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.doctor,
+                  child: doctor_edit_profile.EditProfileScreen()),
+              // Console Administrateur
+              '/auth/admin/login': (_) => const AdminLoginScreen(),
+              '/admin/login': (_) => const AdminLoginScreen(),
+              '/admin': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.admin, child: AdminDashboardScreen()),
+              '/admin/overview': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.admin,
+                  child: AdminDashboardScreen(initialTab: 0)),
+              '/admin/cards': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.admin,
+                  child: AdminDashboardScreen(initialTab: 1)),
+              '/admin/patient-cards': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.admin,
+                  child: AdminDashboardScreen(initialTab: 1)),
+              '/admin/withdrawals': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.admin,
+                  child: AdminDashboardScreen(initialTab: 2)),
+              '/admin/doctors': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.admin,
+                  child: AdminDashboardScreen(initialTab: 3)),
+              '/admin/patients': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.admin,
+                  child: AdminDashboardScreen(initialTab: 4)),
+              '/admin/appointments': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.admin,
+                  child: AdminDashboardScreen(initialTab: 5)),
+              '/admin/requests': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.admin,
+                  child: AdminDashboardScreen(initialTab: 6)),
+              '/admin/conversations': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.admin,
+                  child: AdminDashboardScreen(initialTab: 7)),
+              '/admin/audit': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.admin,
+                  child: AdminDashboardScreen(initialTab: 7)),
+              '/admin/settings': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.admin,
+                  child: AdminDashboardScreen(initialTab: 8)),
+              '/admin/users': (_) => const AuthenticatedRoute(
+                  requiredRole: UserRole.admin,
+                  child: AdminDashboardScreen(initialTab: 9)),
             },
             onGenerateRoute: (settings) {
               // Profil médecin avec persistance
@@ -188,7 +279,8 @@ class AlloDocteurApp extends StatelessWidget {
                   }
                   if (doc == null) {
                     try {
-                      doc = effectiveAuth.mockDoctors.firstWhere((d) => d.id == doctorId || d.userId == doctorId);
+                      doc = effectiveAuth.mockDoctors.firstWhere(
+                          (d) => d.id == doctorId || d.userId == doctorId);
                     } catch (_) {}
                   }
                 }
@@ -226,26 +318,34 @@ class AlloDocteurApp extends StatelessWidget {
               }
 
               // Fallback intelligent : si authentifié, rediriger vers l'espace de l'utilisateur
-              if (effectiveAuth.isAuthenticated && effectiveAuth.currentUser != null) {
+              if (effectiveAuth.isAuthenticated &&
+                  effectiveAuth.currentUser != null) {
                 final role = effectiveAuth.currentUser!.role;
                 if (role == UserRole.admin) {
                   return MaterialPageRoute(
-                    builder: (_) => const AuthenticatedRoute(requiredRole: UserRole.admin, child: AdminDashboardScreen()),
+                    builder: (_) => const AuthenticatedRoute(
+                        requiredRole: UserRole.admin,
+                        child: AdminDashboardScreen()),
                   );
                 } else if (role == UserRole.doctor) {
                   return MaterialPageRoute(
-                    builder: (_) => const AuthenticatedRoute(requiredRole: UserRole.doctor, child: DoctorHomeScreen()),
+                    builder: (_) => const AuthenticatedRoute(
+                        requiredRole: UserRole.doctor,
+                        child: DoctorHomeScreen()),
                   );
                 } else {
                   return MaterialPageRoute(
-                    builder: (_) => const AuthenticatedRoute(requiredRole: UserRole.patient, child: PatientHomeScreen()),
+                    builder: (_) => const AuthenticatedRoute(
+                        requiredRole: UserRole.patient,
+                        child: PatientHomeScreen()),
                   );
                 }
               }
 
               return MaterialPageRoute(
                 settings: settings,
-                builder: (_) => const GuestOnlyRoute(child: WelcomeScreenOriginal()),
+                builder: (_) =>
+                    const GuestOnlyRoute(child: WelcomeScreenOriginal()),
               );
             },
             onUnknownRoute: (settings) => MaterialPageRoute(

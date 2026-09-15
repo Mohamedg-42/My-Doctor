@@ -11,6 +11,7 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/constants/ivory_coast_locations.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/database_service.dart';
 import '../../constants/medical_specialties.dart';
@@ -32,6 +33,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _orderNumberCtrl;
   late TextEditingController _cityCtrl;
   late TextEditingController _communeCtrl;
+  String _selectedCity = 'Abidjan';
+  String _selectedCommune = 'Cocody';
   late TextEditingController _experienceCtrl;
   late TextEditingController _priceCtrl;
   late TextEditingController _bioCtrl;
@@ -53,8 +56,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _phoneCtrl = TextEditingController(text: doctor?.phone ?? user?.phone ?? '');
     _emailCtrl = TextEditingController(text: doctor?.email ?? user?.email ?? '');
     _orderNumberCtrl = TextEditingController(text: doctor?.orderNumber ?? '');
-    _cityCtrl = TextEditingController(text: doctor?.city ?? user?.city ?? 'Abidjan');
-    _communeCtrl = TextEditingController(text: user?.commune ?? '');
+    
+    final initialCity = doctor?.city ?? user?.city ?? 'Abidjan';
+    _selectedCity = IvoryCoastLocations.cities.contains(initialCity) ? initialCity : 'Abidjan';
+    _cityCtrl = TextEditingController(text: _selectedCity);
+
+    final availableCommunes = IvoryCoastLocations.getCommunes(_selectedCity);
+    final initialCommune = user?.commune;
+    if (initialCommune != null && availableCommunes.contains(initialCommune)) {
+      _selectedCommune = initialCommune;
+    } else {
+      _selectedCommune = availableCommunes.first;
+    }
+    _communeCtrl = TextEditingController(text: _selectedCommune);
+
     _experienceCtrl = TextEditingController(text: (doctor?.experienceYears != null && doctor!.experienceYears > 0) ? doctor.experienceYears.toString() : '');
     _priceCtrl = TextEditingController(text: doctor != null ? doctor.consultationPrice.toStringAsFixed(0) : '15000');
     _bioCtrl = TextEditingController(text: doctor?.bio ?? '');
@@ -62,6 +77,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _selectedSpecialty = doctor?.specialty;
     _profilePhotoBase64 = doctor?.avatarBase64 ?? user?.avatarBase64;
     _isAvailable = doctor?.isAvailable ?? true;
+  }
+
+  void _onCityChanged(String? newCity) {
+    if (newCity == null) return;
+    setState(() {
+      _selectedCity = newCity;
+      _cityCtrl.text = newCity;
+      final availableCommunes = IvoryCoastLocations.getCommunes(newCity);
+      if (!availableCommunes.contains(_selectedCommune)) {
+        _selectedCommune = availableCommunes.first;
+        _communeCtrl.text = _selectedCommune;
+      }
+    });
+  }
+
+  void _onCommuneChanged(String? newCommune) {
+    if (newCommune == null) return;
+    setState(() {
+      _selectedCommune = newCommune;
+      _communeCtrl.text = newCommune;
+    });
   }
 
   @override
@@ -253,6 +289,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         specialty: _selectedSpecialty,
         orderNumber: _orderNumberCtrl.text.trim(),
         bio: _bioCtrl.text.trim(),
+        experienceYears: int.tryParse(_experienceCtrl.text.trim()),
+        consultationPrice: double.tryParse(_priceCtrl.text.trim()),
         avatarBase64: _profilePhotoBase64,
       );
 
@@ -564,28 +602,54 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     const SizedBox(height: 16),
 
                     // Ville
-                    TextFormField(
-                      controller: _cityCtrl,
+                    DropdownButtonFormField<String>(
+                      value: IvoryCoastLocations.cities.contains(_selectedCity) ? _selectedCity : IvoryCoastLocations.cities.first,
+                      isExpanded: true,
+                      icon: const Icon(LucideIcons.chevron_down, size: 18, color: AppColors.primary),
                       decoration: InputDecoration(
                         labelText: 'Ville d\'exercice',
-                        hintText: 'Ex: Abidjan',
                         prefixIcon: const Icon(LucideIcons.map_pin, size: 20, color: AppColors.primary),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       ),
+                      items: IvoryCoastLocations.cities.map((city) {
+                        return DropdownMenuItem<String>(
+                          value: city,
+                          child: Text(
+                            city,
+                            style: const TextStyle(fontFamily: 'Poppins', fontSize: 14),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: _onCityChanged,
                     ),
                     const SizedBox(height: 16),
 
                     // Commune
-                    TextFormField(
-                      controller: _communeCtrl,
+                    DropdownButtonFormField<String>(
+                      value: IvoryCoastLocations.getCommunes(_selectedCity).contains(_selectedCommune)
+                          ? _selectedCommune
+                          : IvoryCoastLocations.getCommunes(_selectedCity).first,
+                      isExpanded: true,
+                      icon: const Icon(LucideIcons.chevron_down, size: 18, color: AppColors.primary),
                       decoration: InputDecoration(
                         labelText: 'Commune / Quartier du cabinet',
-                        hintText: 'Ex: Cocody, Deux-Plateaux',
                         prefixIcon: const Icon(LucideIcons.building, size: 20, color: AppColors.primary),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       ),
+                      items: IvoryCoastLocations.getCommunes(_selectedCity).map((commune) {
+                        return DropdownMenuItem<String>(
+                          value: commune,
+                          child: Text(
+                            commune,
+                            style: const TextStyle(fontFamily: 'Poppins', fontSize: 14),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: _onCommuneChanged,
                     ),
                   ],
                 ),

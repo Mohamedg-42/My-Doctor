@@ -61,10 +61,14 @@ class TreatingRequestProvider extends ChangeNotifier {
   /// Demandes envoyées par un patient donné
   List<TreatingDoctorRequest> requestsForPatient(String patientId) =>
       _requests.where((r) => r.patientId == patientId).toList();
+  List<TreatingDoctorRequest> getRequestsForPatient(String patientId) =>
+      requestsForPatient(patientId);
 
   /// Demandes reçues par un médecin donné
   List<TreatingDoctorRequest> requestsForDoctor(String doctorId) =>
       _requests.where((r) => r.doctorId == doctorId).toList();
+  List<TreatingDoctorRequest> getRequestsForDoctor(String doctorId) =>
+      requestsForDoctor(doctorId);
 
   /// Demandes en attente pour un médecin donné
   List<TreatingDoctorRequest> pendingForDoctor(String doctorId) =>
@@ -456,6 +460,74 @@ class TreatingRequestProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Référer une demande vers un autre médecin (remplace le refus chez le médecin)
+  Future<void> referRequest({
+    required String requestId,
+    required String targetDoctorId,
+    required String targetDoctorName,
+    required String targetDoctorSpecialty,
+    String? referralNote,
+  }) async {
+    final idx = _requests.indexWhere((r) => r.id == requestId);
+    if (idx == -1) return;
+
+    final old = _requests[idx];
+    final updated = TreatingDoctorRequest(
+      id: old.id,
+      patientId: old.patientId,
+      patientName: old.patientName,
+      patientAvatar: old.patientAvatar,
+      doctorId: targetDoctorId,
+      doctorName: targetDoctorName,
+      doctorSpecialty: targetDoctorSpecialty,
+      message: old.message,
+      status: TreatingDoctorStatus.pending,
+      isPaid: old.isPaid,
+      amount: old.amount,
+      paymentMethod: old.paymentMethod,
+      paymentRef: old.paymentRef,
+      rejectionReason: null,
+      referredFromDoctorId: old.doctorId,
+      referredFromDoctorName: old.doctorName,
+      referredToDoctorId: targetDoctorId,
+      referredToDoctorName: targetDoctorName,
+      referralNote: referralNote,
+      createdAt: old.createdAt,
+      respondedAt: DateTime.now(),
+    );
+
+    _requests[idx] = updated;
+    await _saveToHive(updated);
+
+    // Notification pour le patient
+    _addNotification(AppNotification(
+      id: 'notif_refer_${requestId}_${DateTime.now().millisecondsSinceEpoch}',
+      type: AppNotifType.requestSent,
+      title: '🔄 Demande référée avec soin',
+      body:
+          '${old.doctorName} a référé votre demande au Dr. $targetDoctorName ($targetDoctorSpecialty) pour une prise en charge adaptée.',
+      doctorId: targetDoctorId,
+      patientId: old.patientId,
+      requestId: requestId,
+      createdAt: DateTime.now(),
+    ));
+
+    // Notification pour le confrère destinataire
+    _addNotification(AppNotification(
+      id: 'notif_doc_refer_${requestId}_${DateTime.now().millisecondsSinceEpoch}',
+      type: AppNotifType.requestSent,
+      title: '📋 Nouveau patient référé par un confrère',
+      body:
+          '${old.doctorName} vous a référé le patient ${old.patientName}${referralNote != null && referralNote.isNotEmpty ? " • Note : $referralNote" : ""}.',
+      doctorId: targetDoctorId,
+      patientId: old.patientId,
+      requestId: requestId,
+      createdAt: DateTime.now(),
+    ));
+
+    notifyListeners();
+  }
+
   void _addNotification(AppNotification notif) {
     _notifications.add(notif);
   }
@@ -477,6 +549,11 @@ class TreatingRequestProvider extends ChangeNotifier {
         'payment_method': r.paymentMethod,
         'payment_ref': r.paymentRef,
         'rejection_reason': r.rejectionReason,
+        'referred_from_doctor_id': r.referredFromDoctorId,
+        'referred_from_doctor_name': r.referredFromDoctorName,
+        'referred_to_doctor_id': r.referredToDoctorId,
+        'referred_to_doctor_name': r.referredToDoctorName,
+        'referral_note': r.referralNote,
         'created_at': r.createdAt.toIso8601String(),
         'responded_at': r.respondedAt?.toIso8601String(),
       };
@@ -497,6 +574,11 @@ class TreatingRequestProvider extends ChangeNotifier {
         paymentMethod: m['payment_method'],
         paymentRef: m['payment_ref'],
         rejectionReason: m['rejection_reason'],
+        referredFromDoctorId: m['referred_from_doctor_id'],
+        referredFromDoctorName: m['referred_from_doctor_name'],
+        referredToDoctorId: m['referred_to_doctor_id'],
+        referredToDoctorName: m['referred_to_doctor_name'],
+        referralNote: m['referral_note'],
         createdAt:
             DateTime.tryParse(m['created_at'] ?? '') ?? DateTime.now(),
         respondedAt: m['responded_at'] != null
@@ -512,6 +594,8 @@ class TreatingRequestProvider extends ChangeNotifier {
         return TreatingDoctorStatus.rejected;
       case 'cancelled':
         return TreatingDoctorStatus.cancelled;
+      case 'referred':
+        return TreatingDoctorStatus.referred;
       default:
         return TreatingDoctorStatus.pending;
     }

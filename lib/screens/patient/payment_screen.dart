@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../providers/app_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../services/bictorys_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PaymentScreen extends StatefulWidget {
   final double amount;
@@ -53,6 +56,8 @@ class _PaymentScreenState extends State<PaymentScreen>
     super.dispose();
   }
 
+  BictorysPaymentResult? _lastBictorysResult;
+
   Future<void> _pay() async {
     if (_selectedMethod == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -90,35 +95,61 @@ class _PaymentScreenState extends State<PaymentScreen>
       return;
     }
 
+    // Récupération des informations du patient
+    final user = context.read<AuthProvider>().currentUser;
+    final customerName = user?.fullName ?? 'Patient My-Doctor';
+    final customerEmail = user?.email ?? 'patient@mydoctor.ci';
+    final customerPhone = !isCard ? _phoneCtrl.text.trim() : (user?.phone ?? '0700000000');
+
+    final bictorysMethod = BictorysService.instance.mapMethodToBictorys(_selectedMethod!);
+    final internalRef = 'MD-${DateTime.now().millisecondsSinceEpoch}';
+
+    // Appel passerelle Bictorys
+    final bictorysResult = await BictorysService.instance.initiatePayment(
+      amount: widget.amount,
+      paymentReference: internalRef,
+      paymentType: bictorysMethod,
+      customerName: customerName,
+      customerPhone: customerPhone,
+      customerEmail: customerEmail,
+    );
+
+    _lastBictorysResult = bictorysResult;
+
     final status = await context.read<AppProvider>().processPayment(
           amount: widget.amount,
           method: _selectedMethod!,
           type: widget.paymentType,
           description: widget.description,
-          phoneNumber: !isCard ? _phoneCtrl.text.trim() : null,
+          phoneNumber: !isCard ? customerPhone : null,
           cardNumber: isCard ? _cardCtrl.text.trim() : null,
           appointmentId: widget.appointmentId,
           doctorId: widget.doctorId,
+          customReference: bictorysResult.displayReference,
         );
 
     if (!mounted) return;
 
     if (status == PaymentStatus.success) {
-      _showSuccessDialog();
+      _showSuccessDialog(bictorysResult);
     } else {
-      _showFailDialog();
+      _showFailDialog(bictorysResult.message);
     }
   }
 
-  void _showSuccessDialog() {
+  void _showSuccessDialog([BictorysPaymentResult? bictorys]) {
+    final ref = bictorys?.displayReference ??
+        '${_selectedMethod!.name.toUpperCase()}${DateTime.now().millisecondsSinceEpoch}';
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             Container(
               padding: const EdgeInsets.all(20),
               decoration: const BoxDecoration(
@@ -148,23 +179,88 @@ class _PaymentScreenState extends State<PaymentScreen>
                 height: 1.5,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
+            // Badge Bictorys
             Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6C3CE1).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.shield_outlined, color: Color(0xFF6C3CE1), size: 14),
+                  SizedBox(width: 4),
+                  Text(
+                    'Passerelle Bictorys (Sandbox)',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF6C3CE1),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: AppColors.success.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Text(
-                'Réf: ${_selectedMethod!.name.toUpperCase()}${DateTime.now().millisecondsSinceEpoch}',
-                style: const TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 11,
-                  color: AppColors.success,
-                  fontWeight: FontWeight.w600,
-                ),
+              child: Column(
+                children: [
+                  Text(
+                    'Réf : $ref',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 11,
+                      color: AppColors.success,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (bictorys?.transactionId != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'ID Transaction : ${bictorys!.transactionId}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 10,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
+            if (bictorys?.paymentLink != null) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final uri = Uri.parse(bictorys!.paymentLink!);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                },
+                icon: const Icon(Icons.open_in_new_rounded, size: 14),
+                label: const Text(
+                  'Voir le reçu Bictorys',
+                  style: TextStyle(fontFamily: 'Poppins', fontSize: 12),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF6C3CE1),
+                  side: const BorderSide(color: Color(0xFF6C3CE1)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
@@ -190,17 +286,19 @@ class _PaymentScreenState extends State<PaymentScreen>
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
-  void _showFailDialog() {
+  void _showFailDialog([String? customError]) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -212,7 +310,7 @@ class _PaymentScreenState extends State<PaymentScreen>
             ),
             const SizedBox(height: 16),
             const Text(
-              'Paiement échoué',
+              'Paiement non complété',
               style: TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 18,
@@ -220,10 +318,10 @@ class _PaymentScreenState extends State<PaymentScreen>
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Solde insuffisant ou erreur de connexion. Veuillez réessayer.',
+            Text(
+              customError ?? 'Solde insuffisant ou erreur de connexion Bictorys. Veuillez réessayer.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontFamily: 'Poppins', color: AppColors.textSecondary),
+              style: const TextStyle(fontFamily: 'Poppins', color: AppColors.textSecondary, fontSize: 13),
             ),
             const SizedBox(height: 20),
             Row(
@@ -263,7 +361,8 @@ class _PaymentScreenState extends State<PaymentScreen>
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   @override
@@ -278,18 +377,19 @@ class _PaymentScreenState extends State<PaymentScreen>
             margin: const EdgeInsets.only(right: 16),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: AppColors.success.withValues(alpha: 0.1),
+              color: const Color(0xFF6C3CE1).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF6C3CE1).withValues(alpha: 0.2)),
             ),
             child: const Row(
               children: [
-                Icon(Icons.lock_rounded, color: AppColors.success, size: 14),
+                Icon(Icons.lock_rounded, color: Color(0xFF6C3CE1), size: 14),
                 SizedBox(width: 4),
-                Text('SSL',
+                Text('Bictorys',
                     style: TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 12,
-                      color: AppColors.success,
+                      color: Color(0xFF6C3CE1),
                       fontWeight: FontWeight.w700,
                     )),
               ],
@@ -405,25 +505,27 @@ class _PaymentScreenState extends State<PaymentScreen>
               ),
             ),
             const SizedBox(height: 16),
-            // Note sécurité
+            // Note sécurité Bictorys
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.info.withValues(alpha: 0.06),
+                color: const Color(0xFF6C3CE1).withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF6C3CE1).withValues(alpha: 0.15)),
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.info_outline_rounded,
-                      color: AppColors.info, size: 16),
+                  Icon(Icons.shield_rounded,
+                      color: Color(0xFF6C3CE1), size: 16),
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Paiements sécurisés par chiffrement TLS 1.3. Vos données ne sont jamais stockées.',
+                      'Paiements sécurisés par Bictorys via TLS 1.3 & 3D Secure. Support Wave, Orange Money, MTN MoMo, Moov et Cartes bancaires.',
                       style: TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 11,
-                        color: AppColors.info,
+                        color: Color(0xFF6C3CE1),
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
@@ -812,7 +914,8 @@ class _CardPaymentTab extends StatelessWidget {
   Widget _buildCardPreview() {
     return Container(
       width: double.infinity,
-      height: 160,
+      constraints: const BoxConstraints(minHeight: 175),
+      height: 175,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(

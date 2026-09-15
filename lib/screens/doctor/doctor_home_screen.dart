@@ -21,10 +21,14 @@ import 'manage_slots_screen.dart';
 import 'subscription_screen.dart';
 import 'security_screen.dart';
 import 'support_screen.dart';
+import 'doctor_call_settings_screen.dart';
 import 'doctor_notifications_screen.dart';
 import 'dashboard_modern_tab.dart';
+import 'doctor_appointments_tab.dart';
 import '../../widgets/common/health_id_card_widget.dart';
 import '../../core/routing/route_persistence_service.dart';
+import '../../widgets/doctor/refer_patient_dialog.dart';
+import '../../widgets/doctor/set_patient_capacity_dialog.dart';
 
 class DoctorHomeScreen extends StatefulWidget {
   const DoctorHomeScreen({super.key});
@@ -101,10 +105,12 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         body: IndexedStack(
           index: _currentIndex,
           children: [
-            const DashboardModernTab(), // ✨ Nouveau tableau de bord moderne
-            _AppointmentsTab(),
+            DashboardModernTab(
+              onNavigateToAppointments: () => _onSelectTab(1),
+            ), // ✨ Nouveau tableau de bord moderne
+            DoctorAppointmentsTab(onBackToDashboard: () => _onSelectTab(0)),
             const DoctorMessagesTab(),
-            _PatientsTab(),
+            _PatientsTab(onBackToDashboard: () => _onSelectTab(0)),
             _DoctorProfileTab(),
           ],
         ),
@@ -473,19 +479,21 @@ class _DashboardTab extends StatelessWidget {
                               Row(
                                 children: [
                                   Expanded(
-                                    child: OutlinedButton(
-                                      onPressed: () => trProvider.respondToRequest(
+                                    child: OutlinedButton.icon(
+                                      onPressed: () => ReferPatientDialog.show(
+                                        context,
                                         requestId: req.id,
-                                        accept: false,
-                                        rejectionReason: 'Refusé par le médecin',
+                                        patientName: req.patientName,
+                                        currentDoctorId: req.doctorId,
                                       ),
+                                      icon: const Icon(LucideIcons.user_round_cog, size: 14),
+                                      label: const Text('Référer', style: AppTextStyles.buttonSmall),
                                       style: OutlinedButton.styleFrom(
-                                        foregroundColor: AppColors.error,
-                                        side: const BorderSide(color: AppColors.error),
+                                        foregroundColor: const Color(0xFF8B5CF6),
+                                        side: const BorderSide(color: Color(0xFF8B5CF6)),
                                         padding: const EdgeInsets.symmetric(vertical: 10),
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                       ),
-                                      child: const Text('Refuser', style: AppTextStyles.buttonSmall),
                                     ),
                                   ),
                                   const SizedBox(width: 10),
@@ -674,112 +682,20 @@ class _SectionHeader extends StatelessWidget {
 }
 
 // ===== APPOINTMENTS TAB =====
-class _AppointmentsTab extends StatefulWidget {
-  @override
-  State<_AppointmentsTab> createState() => _AppointmentsTabState();
-}
-
-class _AppointmentsTabState extends State<_AppointmentsTab> with SingleTickerProviderStateMixin {
-  late TabController _tabCtrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabCtrl = TabController(length: 3, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final doctor = context.watch<DoctorProvider>();
-    return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrow_left, color: AppColors.textPrimary, size: 20),
-          tooltip: 'Retour au tableau de bord',
-          onPressed: () => _onSelectTab(0),
-        ),
-        title: const Text('Mes Rendez-vous'),
-        bottom: TabBar(
-          controller: _tabCtrl,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
-          indicatorColor: AppColors.primary,
-          tabs: const [Tab(text: 'Tous'), Tab(text: 'En attente'), Tab(text: "Confirmés")],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabCtrl,
-        children: [
-          _AptList(apts: doctor.appointments, isDoctor: true),
-          _AptList(apts: doctor.pendingAppointments, isDoctor: true, showAcceptReject: true),
-          _AptList(apts: doctor.confirmedAppointments, isDoctor: true),
-        ],
-      ),
-    );
-  }
-}
-
-class _AptList extends StatelessWidget {
-  final List<AppointmentModel> apts;
-  final bool isDoctor;
-  final bool showAcceptReject;
-
-  const _AptList({required this.apts, this.isDoctor = false, this.showAcceptReject = false});
-
-  @override
-  Widget build(BuildContext context) {
-    if (apts.isEmpty) {
-      return const Center(child: Text('Aucun rendez-vous', style: TextStyle(fontFamily: 'Poppins', color: AppColors.textSecondary)));
-    }
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: apts.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (_, i) => Column(
-        children: [
-          AppointmentCard(appointment: apts[i], isDoctor: isDoctor, onTap: () {}),
-          if (showAcceptReject) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => context.read<DoctorProvider>().respondToAppointment(apts[i].id, false),
-                    style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error)),
-                    child: const Text('Refuser'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => context.read<DoctorProvider>().respondToAppointment(apts[i].id, true),
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, elevation: 0),
-                    child: const Text('Accepter', style: TextStyle(fontFamily: 'Poppins', color: AppColors.textWhite)),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
+typedef _AppointmentsTab = DoctorAppointmentsTab;
+typedef _AptList = DoctorAptList;
 
 // ===== PATIENTS TAB (Demandes traitant) =====
 // Redirige vers DoctorRequestsScreen embarqué dans l'IndexedStack
 class _PatientsTab extends StatelessWidget {
+  final VoidCallback? onBackToDashboard;
+
+  const _PatientsTab({this.onBackToDashboard});
+
   @override
   Widget build(BuildContext context) {
     // Affiche directement le DoctorRequestsScreen (sans Scaffold dupliqué)
-    return const DoctorRequestsScreen();
+    return DoctorRequestsScreen(onBackToDashboard: onBackToDashboard);
   }
 }
 
@@ -911,7 +827,7 @@ class _DoctorProfileTabState extends State<_DoctorProfileTab> {
                 children: [
                   _ProfStat(value: stats.averageRating.toStringAsFixed(1), label: 'Note'),
                   Container(height: 30, width: 1, color: Colors.grey.shade200),
-                  _ProfStat(value: '${stats.totalPatients}', label: 'Patients'),
+                  _ProfStat(value: '${stats.totalPatients} / ${auth.currentUser?.patientCapacity ?? 50}', label: 'Patients'),
                   Container(height: 30, width: 1, color: Colors.grey.shade200),
                   _ProfStat(value: '${stats.totalAppointments}', label: 'RDV'),
                 ],
@@ -923,6 +839,25 @@ class _DoctorProfileTabState extends State<_DoctorProfileTab> {
               title: 'Modifier le profil',
               subtitle: 'Photo, bio, disponibilités',
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen())),
+            ),
+            _MenuItem(
+              icon: FontAwesomeIcons.usersGear,
+              title: 'Capacité de patientèle',
+              subtitle: 'Définir le nombre max de patients (${auth.currentUser?.patientCapacity ?? 50} max)',
+              color: AppColors.primary,
+              onTap: () async {
+                final docId = auth.currentUser?.id;
+                if (docId != null) {
+                  final updated = await SetPatientCapacityDialog.show(
+                    context,
+                    doctorId: docId,
+                    currentCapacity: auth.currentUser?.patientCapacity ?? 50,
+                  );
+                  if (updated == true) {
+                    await auth.refreshCurrentUser();
+                  }
+                }
+              },
             ),
             _MenuItem(
               icon: FontAwesomeIcons.calendarCheck,
@@ -945,6 +880,13 @@ class _DoctorProfileTabState extends State<_DoctorProfileTab> {
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubscriptionScreen())),
             ),
             _MenuItem(
+              icon: FontAwesomeIcons.phoneVolume,
+              title: 'Gestion des Appels',
+              subtitle: 'Permissions et filtres d\'appels',
+              color: AppColors.brandBlue,
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DoctorCallSettingsScreen())),
+            ),
+            _MenuItem(
               icon: FontAwesomeIcons.shieldHalved,
               title: 'Sécurité',
               subtitle: 'Mot de passe, 2FA',
@@ -955,13 +897,6 @@ class _DoctorProfileTabState extends State<_DoctorProfileTab> {
               title: 'Support',
               subtitle: 'Aide et contact',
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen())),
-            ),
-            _MenuItem(
-              icon: FontAwesomeIcons.userShield,
-              title: 'Console Administrateur',
-              subtitle: 'Supervision & gestion du système',
-              color: AppColors.brandNavy,
-              onTap: () => Navigator.pushNamed(context, '/admin'),
             ),
             const SizedBox(height: 12),
             SizedBox(

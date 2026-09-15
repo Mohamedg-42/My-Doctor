@@ -6,7 +6,7 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="MédiLink Care - Téléconsultation médicale">
+  <meta name="description" content="My Doctor - Votre médecin plus proche de vous">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
   <!-- Permissions caméra / microphone pour la téléconsultation -->
@@ -14,24 +14,24 @@
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="MédiLink Care">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="My Doctor">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png" />
 
-  <title>MédiLink Care</title>
+  <title>My Doctor</title>
   <link rel="manifest" href="manifest.json">
 
   <style>
-    /* Arrière-plan identique à l'écran d'accueil Flutter (#F8FAFC) - Aucun écran noir */
+    /* Fond blanc épuré conforme à la maquette */
     body {
-      background-color: #F8FAFC;
+      background-color: #FFFFFF;
       margin: 0;
       padding: 0;
       overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     }
 
     #loading-indicator {
@@ -41,12 +41,18 @@
       right: 0;
       bottom: 0;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: center;
-      background-color: #F8FAFC;
+      justify-content: space-between;
+      background-color: #FFFFFF;
       z-index: 999999;
-      color: #0f172a;
-      transition: opacity 0.25s ease, visibility 0.25s ease;
+      box-sizing: border-box;
+      padding: 24px;
+      transition: opacity 0.35s ease, visibility 0.35s ease;
+    }
+
+    .loader-top-spacer {
+      height: 10px;
     }
 
     .loader-content {
@@ -54,154 +60,88 @@
       flex-direction: column;
       align-items: center;
       text-align: center;
-      padding: 24px;
-      max-width: 320px;
-    }
-
-    /* Capsule Logo officielle identique à l'écran de choix de profil (220x140) */
-    .logo-container {
-      background: #ffffff;
-      padding: 16px;
-      border-radius: 28px;
-      box-shadow: 0 8px 24px rgba(10, 27, 48, 0.05);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 24px;
-      width: 220px;
-      height: 140px;
-      box-sizing: border-box;
-      animation: pulse-gentle 2.4s ease-in-out infinite;
     }
 
     .logo-img {
-      max-height: 108px;
-      max-width: 188px;
-      width: auto;
+      width: 220px;
+      max-width: 80vw;
       height: auto;
       object-fit: contain;
       display: block;
+      margin-bottom: 48px;
     }
 
-    @keyframes pulse-gentle {
-
-      0%,
-      100% {
-        transform: scale(1);
-        box-shadow: 0 8px 24px rgba(10, 27, 48, 0.05);
-      }
-
-      50% {
-        transform: scale(1.02);
-        box-shadow: 0 12px 30px rgba(0, 191, 165, 0.15);
-      }
-    }
-
-    /* Spinner moderne turquoise / bleu médical */
-    .spinner {
-      width: 34px;
-      height: 34px;
-      border: 3px solid #e2e8f0;
-      border-top-color: #00BFA5;
-      border-right-color: #2D9CDB;
-      border-radius: 50%;
-      animation: spin 0.85s cubic-bezier(0.68, -0.4, 0.27, 1.4) infinite;
-      margin-bottom: 16px;
-    }
-
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
-
-    .loading-title {
-      font-size: 20px;
-      font-weight: 700;
-      margin: 0;
-      letter-spacing: 0.6px;
-      color: #0f172a;
-    }
-
-    .loading-subtitle {
-      font-size: 13px;
-      color: #64748b;
-      margin-top: 6px;
+    /* Spinner rotatif à 12 pétales bleu azur #009EE2 */
+    .petal-spinner {
+      position: relative;
+      width: 44px;
+      height: 44px;
       margin-bottom: 18px;
+    }
+
+    .petal-spinner div {
+      position: absolute;
+      left: 20px;
+      top: 3px;
+      width: 4px;
+      height: 11px;
+      background: #009EE2;
+      border-radius: 4px;
+      transform-origin: 2px 19px;
+      animation: petal-fade 1s linear infinite;
+    }
+
+    .petal-spinner div:nth-child(1)  { transform: rotate(0deg); animation-delay: -1s; }
+    .petal-spinner div:nth-child(2)  { transform: rotate(30deg); animation-delay: -0.916s; }
+    .petal-spinner div:nth-child(3)  { transform: rotate(60deg); animation-delay: -0.833s; }
+    .petal-spinner div:nth-child(4)  { transform: rotate(90deg); animation-delay: -0.75s; }
+    .petal-spinner div:nth-child(5)  { transform: rotate(120deg); animation-delay: -0.666s; }
+    .petal-spinner div:nth-child(6)  { transform: rotate(150deg); animation-delay: -0.583s; }
+    .petal-spinner div:nth-child(7)  { transform: rotate(180deg); animation-delay: -0.5s; }
+    .petal-spinner div:nth-child(8)  { transform: rotate(210deg); animation-delay: -0.416s; }
+    .petal-spinner div:nth-child(9)  { transform: rotate(240deg); animation-delay: -0.333s; }
+    .petal-spinner div:nth-child(10) { transform: rotate(270deg); animation-delay: -0.25s; }
+    .petal-spinner div:nth-child(11) { transform: rotate(300deg); animation-delay: -0.166s; }
+    .petal-spinner div:nth-child(12) { transform: rotate(330deg); animation-delay: -0.083s; }
+
+    @keyframes petal-fade {
+      from { opacity: 1; }
+      to { opacity: 0.15; }
+    }
+
+    .loading-text {
+      font-size: 16px;
       font-weight: 500;
+      color: #64748B;
       letter-spacing: 0.2px;
     }
 
-    /* Barre de progression subtile */
-    .progress-bar-container {
-      width: 160px;
-      height: 4px;
-      background: #e2e8f0;
-      border-radius: 4px;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .progress-bar-line {
-      width: 40%;
-      height: 100%;
-      background: linear-gradient(90deg, #00BFA5, #2D9CDB);
-      border-radius: 4px;
-      position: absolute;
-      animation: progress-move 1.6s ease-in-out infinite;
-    }
-
-    @keyframes progress-move {
-      0% {
-        left: -40%;
-        width: 30%;
-      }
-
-      50% {
-        left: 35%;
-        width: 50%;
-      }
-
-      100% {
-        left: 100%;
-        width: 30%;
-      }
+    /* Ligne de rythme cardiaque (ECG) turquoise */
+    .heartbeat-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 24px;
     }
   </style>
-  <script>
-    // Détection immédiate du rafraîchissement avec session existante
-    // Évite totalement d'afficher la page de chargement lors d'un F5
-    (function() {
-      try {
-        var hasSession = window.localStorage.getItem('flutter.auth_token') ||
-                         window.localStorage.getItem('flutter.user_role') ||
-                         window.localStorage.getItem('flutter.user_id') ||
-                         window.localStorage.getItem('flutter.last_active_route');
-        if (hasSession) {
-          var style = document.createElement('style');
-          style.id = 'suppress-loader-style';
-          style.innerHTML = '#loading-indicator { display: none !important; }';
-          document.head.appendChild(style);
-        }
-      } catch (e) {}
-    })();
-  </script>
 </head>
 
 <body>
   <div id="loading-indicator">
+    <div class="loader-top-spacer"></div>
     <div class="loader-content">
-      <div class="logo-container">
-        <img class="logo-img" src="logo.png" alt="My Doctor Logo"
-          onerror="this.style.display='none'; document.getElementById('fallback-title').style.display='block';">
-        <div id="fallback-title" style="display:none; font-weight:bold; font-size:22px; color:#0A5C80;">my doctor</div>
+      <img class="logo-img" src="logo.png" alt="My Doctor Logo">
+      <div class="petal-spinner">
+        <div></div><div></div><div></div><div></div>
+        <div></div><div></div><div></div><div></div>
+        <div></div><div></div><div></div><div></div>
       </div>
-      <div class="spinner"></div>
-      <h1 class="loading-title">My Doctor</h1>
-      <p class="loading-subtitle">Chargement de votre espace santé...</p>
-      <div class="progress-bar-container">
-        <div class="progress-bar-line"></div>
-      </div>
+      <div class="loading-text">Chargement...</div>
+    </div>
+    <div class="heartbeat-container">
+      <svg width="120" height="24" viewBox="0 0 120 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0 12 H48 L52 15.5 L58 1.5 L63 22.5 L67 8.5 L71 12 H120" stroke="#00A896" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
     </div>
   </div>
 
@@ -216,11 +156,11 @@
         loader.style.pointerEvents = 'none';
         setTimeout(function () {
           if (loader && loader.parentNode) loader.parentNode.removeChild(loader);
-        }, 250);
+        }, 350);
       }
     }
 
-    // Le loader ne s'efface que lorsque Flutter a rendu ses pixels (zéro écran noir intermédiaire)
+    // Le loader web s'efface en douceur dès que Flutter a rendu ses premiers pixels
     window.addEventListener('flutter-first-frame', hideLoader);
 
     // Fallback de sécurité si l'événement n'est pas supporté par le navigateur

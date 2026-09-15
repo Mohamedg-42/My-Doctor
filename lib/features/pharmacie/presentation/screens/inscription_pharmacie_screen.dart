@@ -122,30 +122,32 @@ class _InscriptionPharmacieScreenState extends State<InscriptionPharmacieScreen>
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: PharmacieColors.primaryUltraLight,
-                shape: BoxShape.circle,
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  color: PharmacieColors.primaryUltraLight,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check_circle_rounded,
+                    color: PharmacieColors.primary, size: 48),
               ),
-              child: const Icon(Icons.check_circle_rounded,
-                  color: PharmacieColors.primary, size: 48),
-            ),
-            const SizedBox(height: 20),
-            const Text('Inscription réussie !',
-                style: TextStyle(fontFamily: 'Poppins', fontSize: 18,
-                    fontWeight: FontWeight.bold, color: Color(0xFF1A2340))),
-            const SizedBox(height: 10),
-            const Text(
-              'Votre compte pharmacie a été créé. Votre dossier est en cours de vérification par notre équipe.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontFamily: 'Poppins', fontSize: 12,
-                  color: Color(0xFF7A8BA0), height: 1.5),
-            ),
-          ],
+              const SizedBox(height: 20),
+              const Text('Inscription réussie !',
+                  style: TextStyle(fontFamily: 'Poppins', fontSize: 18,
+                      fontWeight: FontWeight.bold, color: Color(0xFF1A2340))),
+              const SizedBox(height: 10),
+              const Text(
+                'Votre compte pharmacie a été créé. Votre dossier est en cours de vérification par notre équipe.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontFamily: 'Poppins', fontSize: 12,
+                    color: Color(0xFF7A8BA0), height: 1.5),
+              ),
+            ],
+          ),
         ),
         actions: [
           SizedBox(

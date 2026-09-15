@@ -213,12 +213,15 @@ class _ConnexionPharmacieScreenState extends State<ConnexionPharmacieScreen> {
                                 children: [
                                   Icon(Icons.local_pharmacy_rounded, size: 18),
                                   SizedBox(width: 8),
-                                  Text(
-                                    'Se connecter — Espace Pharmacie',
-                                    style: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
+                                  Flexible(
+                                    child: Text(
+                                      'Se connecter — Espace Pharmacie',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontFamily: 'Poppins',
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -293,12 +296,15 @@ class _DemoBanner extends StatelessWidget {
                 child: const Icon(Icons.flash_on_rounded, color: Colors.white, size: 14),
               ),
               const SizedBox(width: 8),
-              const Text(
-                'Accès Démo — Pharmacie Centrale',
-                style: TextStyle(
-                  fontFamily: 'Poppins', fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: PharmacieColors.primary,
+              const Expanded(
+                child: Text(
+                  'Accès Démo — Pharmacie Centrale',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'Poppins', fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: PharmacieColors.primary,
+                  ),
                 ),
               ),
             ],

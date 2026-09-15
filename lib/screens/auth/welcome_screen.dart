@@ -229,27 +229,6 @@ class WelcomeScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
-
-                    // Accès Console Administrateur
-                    TextButton.icon(
-                      key: const Key('welcome_admin_button'),
-                      onPressed: () => Navigator.pushNamed(context, '/admin'),
-                      icon: const Icon(
-                        Icons.admin_panel_settings_outlined,
-                        size: 15,
-                        color: AppColors.textLight,
-                      ),
-                      label: const Text(
-                        'Portail Administrateur',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 12,
-                          color: AppColors.textLight,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),

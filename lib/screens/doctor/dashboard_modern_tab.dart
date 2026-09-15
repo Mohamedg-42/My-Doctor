@@ -17,34 +17,19 @@ import 'doctor_payment_screen.dart';
 import 'doctor_notifications_screen.dart';
 import 'edit_profile_screen.dart';
 import 'manage_slots_screen.dart';
+import '../../widgets/doctor/set_patient_capacity_dialog.dart';
+import 'doctor_appointments_tab.dart';
 
 /// Tableau de bord moderne pour médecin
 /// Design inspiré d'applications médicales/assurance modernes
 /// Avec cartes arrondies, couleurs pastel et dégradés doux
 class DashboardModernTab extends StatelessWidget {
-  const DashboardModernTab({super.key});
+  final VoidCallback? onNavigateToAppointments;
+
+  const DashboardModernTab({super.key, this.onNavigateToAppointments});
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-    final doctor = auth.doctorProfile;
-    final user = auth.currentUser;
-
-    int completionPoints = 0;
-    if (doctor != null) {
-      if (doctor.lastName.trim().isNotEmpty) completionPoints += 20;
-      if (doctor.firstName.trim().isNotEmpty) completionPoints += 20;
-      if (doctor.specialty.trim().isNotEmpty) completionPoints += 20;
-      if (doctor.orderNumber.trim().length == 5) completionPoints += 15;
-      if (doctor.phone.trim().isNotEmpty) completionPoints += 10;
-      if (doctor.bio != null && doctor.bio!.trim().length > 10) completionPoints += 15;
-    } else if (user != null) {
-      if (user.lastName.trim().isNotEmpty) completionPoints += 20;
-      if (user.firstName.trim().isNotEmpty) completionPoints += 20;
-      if (user.phone.trim().isNotEmpty) completionPoints += 20;
-    }
-    final bool isProfileIncomplete = completionPoints < 100;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FD), // Fond off-white doux
       body: SafeArea(
@@ -57,53 +42,8 @@ class DashboardModernTab extends StatelessWidget {
               _buildHeader(context),
               const SizedBox(height: 20),
 
-              // Bannière de validation administrative
-              if (user?.status == AccountStatus.pending) ...[
-                _DoctorAdminPendingBanner(
-                  onSimulateAdminApproval: () async {
-                    if (user != null) {
-                      await DatabaseService().updateUserStatus(user.id, 'active');
-                      await auth.refreshCurrentUser();
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Row(
-                              children: [
-                                Icon(LucideIcons.badge_check, color: Colors.white, size: 20),
-                                SizedBox(width: 10),
-                                Expanded(
-                                  child: Text('✅ Compte validé par l\'administration ! Vous êtes désormais visible par les patients.'),
-                                ),
-                              ],
-                            ),
-                            backgroundColor: const Color(0xFF059669),
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        );
-                      }
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-              ] else if (user?.status == AccountStatus.active) ...[
-                _DoctorAdminActiveBadge(),
-                const SizedBox(height: 16),
-              ],
-
-              // Bannière de complétion du profil praticien
-              if (isProfileIncomplete) ...[
-                _DoctorProfileCompletionBanner(
-                  completionPercentage: completionPoints,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-              ],
+              // Bannières de statut et complétion du profil isolées pour éviter les rebuilds globaux
+              const _DoctorProfileStatusBanners(),
               
               // Bannière promotionnelle / Info importante
               _buildPromoBanner(context),
@@ -229,7 +169,7 @@ class DashboardModernTab extends StatelessWidget {
   /// Bannière promotionnelle avec dégradé
   Widget _buildPromoBanner(BuildContext context) {
     return Container(
-      height: 140,
+      constraints: const BoxConstraints(minHeight: 140),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF4FACFE), Color(0xFF00F2FE)],
@@ -253,13 +193,14 @@ class DashboardModernTab extends StatelessWidget {
             // Action de la bannière
           },
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Row(
               children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       const Text(
                         'Gérez vos consultations',
@@ -273,6 +214,8 @@ class DashboardModernTab extends StatelessWidget {
                       const SizedBox(height: 6),
                       Text(
                         'Accédez rapidement à vos rendez-vous et patients',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 12,
@@ -302,8 +245,8 @@ class DashboardModernTab extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Container(
-                  width: 80,
-                  height: 80,
+                  width: 72,
+                  height: 72,
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20),
@@ -311,7 +254,7 @@ class DashboardModernTab extends StatelessWidget {
                   child: const Center(
                     child: FaIcon(
                       FontAwesomeIcons.stethoscope,
-                      size: 38,
+                      size: 34,
                       color: Colors.white,
                     ),
                   ),
@@ -351,10 +294,18 @@ class DashboardModernTab extends StatelessWidget {
               end: Alignment.bottomRight,
             ),
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ManageSlotsScreen()),
-              );
+              if (onNavigateToAppointments != null) {
+                onNavigateToAppointments!();
+              } else {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => DoctorAppointmentsTab(
+                      onBackToDashboard: () => Navigator.pop(context),
+                    ),
+                  ),
+                );
+              }
             },
           ),
         ),
@@ -422,6 +373,20 @@ class DashboardModernTab extends StatelessWidget {
                 label: 'Rendez-vous',
                 icon: FontAwesomeIcons.calendarDays,
                 color: const Color(0xFF667EEA),
+                onTap: () {
+                  if (onNavigateToAppointments != null) {
+                    onNavigateToAppointments!();
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DoctorAppointmentsTab(
+                          onBackToDashboard: () => Navigator.pop(context),
+                        ),
+                      ),
+                    );
+                  }
+                },
               ),
             ),
             const SizedBox(width: 12),
@@ -431,6 +396,20 @@ class DashboardModernTab extends StatelessWidget {
                 label: 'Confirmés',
                 icon: FontAwesomeIcons.circleCheck,
                 color: const Color(0xFF48BB78),
+                onTap: () {
+                  if (onNavigateToAppointments != null) {
+                    onNavigateToAppointments!();
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DoctorAppointmentsTab(
+                          onBackToDashboard: () => Navigator.pop(context),
+                        ),
+                      ),
+                    );
+                  }
+                },
               ),
             ),
           ],
@@ -447,14 +426,30 @@ class DashboardModernTab extends StatelessWidget {
         final doctorId = auth.doctorProfile?.id ?? '';
         final stats = doctorProvider.stats;
         final unreadMessages = msgProvider.totalUnreadForDoctor(doctorId);
+        final currentCap = auth.currentUser?.patientCapacity ?? 50;
         
         return Column(
           children: [
             _buildOverviewCard(
-              title: 'Total Patients',
-              value: '${stats.totalPatients}',
-              subtitle: 'Patients suivis',
+              title: 'Capacité Patientèle',
+              value: '${stats.totalPatients} / $currentCap',
+              subtitle: stats.totalPatients >= currentCap 
+                  ? 'Plafond atteint • Taper pour modifier' 
+                  : 'Patients suivis • Taper pour configurer',
               icon: FontAwesomeIcons.users,
+              onTap: () async {
+                final docId = auth.currentUser?.id;
+                if (docId != null) {
+                  final updated = await SetPatientCapacityDialog.show(
+                    context,
+                    doctorId: docId,
+                    currentCapacity: currentCap,
+                  );
+                  if (updated == true) {
+                    await auth.refreshCurrentUser();
+                  }
+                }
+              },
               gradient: const LinearGradient(
                 colors: [Color(0xFFF093FB), Color(0xFFF5576C)],
                 begin: Alignment.topLeft,
@@ -498,22 +493,28 @@ class DashboardModernTab extends StatelessWidget {
     required String subtitle,
     required IconData icon,
     required Gradient gradient,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
+          child: Row(
+            children: [
           Container(
             width: 60,
             height: 60,
@@ -568,7 +569,9 @@ class DashboardModernTab extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }
 
@@ -687,29 +690,36 @@ class _StatCard extends StatelessWidget {
   final String label;
   final IconData icon;
   final Color color;
+  final VoidCallback? onTap;
 
   const _StatCard({
     required this.value,
     required this.label,
     required this.icon,
     required this.color,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
-        ],
-      ),
       child: Column(
         children: [
           Row(
@@ -756,7 +766,9 @@ class _StatCard extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }
 
@@ -1115,3 +1127,81 @@ class _DoctorAdminActiveBadge extends StatelessWidget {
   }
 }
 
+class _DoctorProfileStatusBanners extends StatelessWidget {
+  const _DoctorProfileStatusBanners();
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AuthProvider>(
+      builder: (context, auth, _) {
+        final doctor = auth.doctorProfile;
+        final user = auth.currentUser;
+
+        int completionPoints = 0;
+        if (doctor != null) {
+          if (doctor.lastName.trim().isNotEmpty) completionPoints += 20;
+          if (doctor.firstName.trim().isNotEmpty) completionPoints += 20;
+          if (doctor.specialty.trim().isNotEmpty) completionPoints += 20;
+          if (doctor.orderNumber.trim().length == 5) completionPoints += 15;
+          if (doctor.phone.trim().isNotEmpty) completionPoints += 10;
+          if (doctor.bio != null && doctor.bio!.trim().length > 10) completionPoints += 15;
+        } else if (user != null) {
+          if (user.lastName.trim().isNotEmpty) completionPoints += 20;
+          if (user.firstName.trim().isNotEmpty) completionPoints += 20;
+          if (user.phone.trim().isNotEmpty) completionPoints += 20;
+        }
+        final bool isProfileIncomplete = completionPoints < 100;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (user?.status == AccountStatus.pending) ...[
+              _DoctorAdminPendingBanner(
+                onSimulateAdminApproval: () async {
+                  if (user != null) {
+                    await DatabaseService().updateUserStatus(user.id, 'active');
+                    await auth.refreshCurrentUser();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Row(
+                            children: [
+                              Icon(LucideIcons.badge_check, color: Colors.white, size: 20),
+                              SizedBox(width: 10),
+                              Expanded(
+                                child: Text('✅ Compte validé par l\'administration ! Vous êtes désormais visible par les patients.'),
+                              ),
+                            ],
+                          ),
+                          backgroundColor: const Color(0xFF059669),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+            ] else if (user?.status == AccountStatus.active) ...[
+              _DoctorAdminActiveBadge(),
+              const SizedBox(height: 16),
+            ],
+            if (isProfileIncomplete) ...[
+              _DoctorProfileCompletionBanner(
+                completionPercentage: completionPoints,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}

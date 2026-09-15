@@ -346,16 +346,17 @@ class AppProvider extends ChangeNotifier {
     String? cardNumber,
     String? appointmentId,
     String? doctorId,
+    String? customReference,
   }) async {
     _isProcessingPayment = true;
     _lastPaymentStatus = PaymentStatus.processing;
     notifyListeners();
 
     // Simulation réseau (2-3s)
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 1));
 
-    // 95% de succès en démo
-    final success = DateTime.now().millisecond % 20 != 0;
+    // 98% de succès en démo
+    final success = DateTime.now().millisecond % 50 != 0;
     final status = success ? PaymentStatus.success : PaymentStatus.failed;
 
     if (success) {
@@ -366,7 +367,7 @@ class AppProvider extends ChangeNotifier {
         status: status,
         type: type,
         description: description,
-        reference: '${method.name.toUpperCase()}${DateTime.now().millisecondsSinceEpoch}',
+        reference: customReference ?? '${method.name.toUpperCase()}${DateTime.now().millisecondsSinceEpoch}',
         createdAt: DateTime.now(),
         appointmentId: appointmentId,
         doctorId: doctorId,

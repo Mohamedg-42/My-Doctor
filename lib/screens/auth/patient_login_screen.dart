@@ -48,12 +48,8 @@ class _PatientLoginScreenState extends State<PatientLoginScreen> {
     setState(() => _isLoading = false);
 
     if (success) {
-      if (auth.isAdmin) {
-        Navigator.pushNamedAndRemoveUntil(context, '/admin', (route) => false);
-      } else {
-        // Redirection directe vers l'écran d'accueil patient sans retour possible vers login
-        Navigator.pushNamedAndRemoveUntil(context, '/patient/home', (route) => false);
-      }
+      // Redirection directe vers l'écran d'accueil patient sans retour possible vers login
+      Navigator.pushNamedAndRemoveUntil(context, '/patient/home', (route) => false);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -285,22 +281,6 @@ class _PatientLoginScreenState extends State<PatientLoginScreen> {
                                   ),
                                 ),
                               ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Center(
-                        child: TextButton.icon(
-                          onPressed: () => Navigator.pushNamed(context, '/admin'),
-                          icon: const Icon(LucideIcons.shield, size: 14, color: AppColors.brandNavy),
-                          label: const Text(
-                            'Accès Portail Administrateur',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.brandNavy,
                             ),
                           ),
                         ),

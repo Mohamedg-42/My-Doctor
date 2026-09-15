@@ -113,9 +113,12 @@ class AppConstants {
   // Durée consultation (minutes)
   static const List<int> consultationDurations = [15, 20, 30, 45, 60];
 
-  // Langues
-  static const Map<String, String> languages = {
-    'fr': 'Français',
-    'en': 'English',
-  };
+  // Bictorys Payment Gateway
+  static const String bictorysPublicKey =
+      'test_public-1f408b1c-a65b-421a-bd8b-703b7cdfca1e.IbcwtwZHxjD0DzWDsS5Oc9idxdq3lruXFzl0JXCM4dlW3VfDa1j6kv2GS8S4wFrB';
+  static const String bictorysTestApiUrl = 'https://api.test.bictorys.com';
+  static const String bictorysLiveApiUrl = 'https://api.bictorys.com';
+  static const String bictorysDefaultCountry = 'CI';
+  static const String bictorysDefaultCurrency = 'XOF';
 }
+

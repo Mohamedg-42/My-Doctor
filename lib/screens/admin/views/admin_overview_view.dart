@@ -1,419 +1,366 @@
+// lib/screens/admin/views/admin_overview_view.dart
+//
+// Vue d'ensemble de la console administrateur avec KPIs et alertes rapides.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../providers/auth_provider.dart';
-import '../../../providers/message_provider.dart';
-import '../../../providers/treating_request_provider.dart';
 import '../../../services/database_service.dart';
+import '../../../providers/treating_request_provider.dart';
+import '../../../providers/message_provider.dart';
+import '../components/admin_kpi_card.dart';
 
-class AdminOverviewView extends StatelessWidget {
-  final Function(int) onNavigateTab;
+class AdminOverviewView extends StatefulWidget {
+  final ValueChanged<int> onNavigateToTab;
 
-  const AdminOverviewView({super.key, required this.onNavigateTab});
+  const AdminOverviewView({super.key, required this.onNavigateToTab});
+
+  @override
+  State<AdminOverviewView> createState() => _AdminOverviewViewState();
+}
+
+class _AdminOverviewViewState extends State<AdminOverviewView> {
+  bool _showAllCards = false; // Par défaut, affichage réduit (6 indicateurs essentiels)
 
   @override
   Widget build(BuildContext context) {
     final db = DatabaseService();
-    final trProvider = context.watch<TreatingRequestProvider>();
-    final msgProvider = context.watch<MessageProvider>();
+    final requestProvider = context.watch<TreatingRequestProvider>();
+    final messageProvider = context.watch<MessageProvider>();
 
-    final totalUsers = db.totalUsers;
-    final totalPatients = db.totalPatients;
-    final totalDoctors = db.totalDoctors;
-    final pendingDoctors = db.totalPendingDoctors;
-    final activeDoctors = db.totalActiveDoctors;
-
-    final allRequests = trProvider.allRequests;
+    final allUsers = db.getAllUsers();
+    final allDoctors = db.getAllDoctors(onlyActive: false);
+    final activeDoctors = allDoctors.where((d) => d.status == 'active').length;
+    final pendingDoctors = allDoctors.where((d) => d.status == 'pending').length;
+    final allPatients = db.getAllPatients();
+    final allAppointments = db.getAllAppointments();
+    final allRequests = requestProvider.allRequests;
     final pendingRequests = allRequests.where((r) => r.isPending).length;
-    final acceptedRequests = allRequests.where((r) => r.isAccepted).length;
-    final rejectedRequests = allRequests.where((r) => r.status.name == 'rejected').length;
+    final conversations = messageProvider.conversations;
+    final totalMessages = conversations.fold<int>(
+      0,
+      (sum, c) => sum + messageProvider.messagesOf(c.id).length,
+    );
 
-    final totalConvs = msgProvider.allConversations.length;
-    final totalMsgs = msgProvider.totalMessagesCount;
-    final totalAppointments = db.totalAppointments;
+    // Patients ayant épuisé leur quota
+    int quotaExceededCount = 0;
+    for (final p in allPatients) {
+      final usage = db.getPatientMessageUsage(p.id);
+      if (usage.isLimitReached) quotaExceededCount++;
+    }
+
+    // Nombre de cartes (patients avec carte ou numéro CMU)
+    final cardsCount = allPatients.where((p) => p.cmuNumber?.isNotEmpty == true).length;
+
+    // Retraits simulés
+    const pendingWithdrawalsCount = 1;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Bannière de bienvenue ──────────────────────────────────────
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.brandNavy, Color(0xFF2C5282)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          // ── Section Alertes d'action rapide ──────────────────────────
+          if (pendingDoctors > 0 || pendingWithdrawalsCount > 0 || pendingRequests > 0) ...[
+            const Text(
+              'Actions prioritaires requises',
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A),
               ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.brandNavy.withValues(alpha: 0.15),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-              ],
             ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(LucideIcons.shield_check, color: Colors.white, size: 30),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Panneau d\'Administration',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Supervision globale du système My Doctor • $totalUsers comptes enregistrés',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.85),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // ── Section 1 : Utilisateurs ──────────────────────────────────
-          const Text(
-            'Utilisateurs & Professionnels',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isDesktop = constraints.maxWidth > 700;
-              final crossAxisCount = isDesktop ? 4 : 2;
-
-              return GridView.count(
-                crossAxisCount: crossAxisCount,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                childAspectRatio: 1.35,
-                children: [
-                  _StatCard(
-                    title: 'Patients',
-                    value: '$totalPatients',
-                    subtitle: 'Comptes actifs',
-                    icon: LucideIcons.users,
-                    color: AppColors.brandBlue,
-                    onTap: () => onNavigateTab(3), // Tab Patients
-                  ),
-                  _StatCard(
-                    title: 'Médecins',
-                    value: '$totalDoctors',
-                    subtitle: '$activeDoctors actifs / $pendingDoctors en attente',
-                    icon: LucideIcons.stethoscope,
-                    color: AppColors.brandTurquoise,
-                    onTap: () => onNavigateTab(2), // Tab Médecins
-                  ),
-                  _StatCard(
-                    title: 'Validation requise',
-                    value: '$pendingDoctors',
-                    subtitle: 'Médecins à valider',
-                    icon: LucideIcons.user_check,
-                    color: pendingDoctors > 0 ? AppColors.warning : AppColors.textMuted,
-                    onTap: () => onNavigateTab(2),
-                  ),
-                  _StatCard(
-                    title: 'Total Comptes',
-                    value: '$totalUsers',
-                    subtitle: 'Inscriptions',
-                    icon: LucideIcons.layout_grid,
-                    color: AppColors.brandNavy,
-                    onTap: () => onNavigateTab(1), // Tab Utilisateurs
-                  ),
-                ],
-              );
-            },
-          ),
-
-          const SizedBox(height: 24),
-
-          // ── Section 2 : Demandes & Flux Médical ──────────────────────
-          const Text(
-            'Demandes de mise en relation',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isDesktop = constraints.maxWidth > 700;
-              final crossAxisCount = isDesktop ? 4 : 2;
-
-              return GridView.count(
-                crossAxisCount: crossAxisCount,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                childAspectRatio: 1.35,
-                children: [
-                  _StatCard(
-                    title: 'Demandes totales',
-                    value: '${allRequests.length}',
-                    subtitle: 'Patient ↔ Médecin',
-                    icon: LucideIcons.send,
-                    color: AppColors.brandBlue,
-                    onTap: () => onNavigateTab(4),
-                  ),
-                  _StatCard(
-                    title: 'En attente',
-                    value: '$pendingRequests',
-                    subtitle: 'Attente réponse doc',
-                    icon: LucideIcons.clock,
-                    color: AppColors.warning,
-                    onTap: () => onNavigateTab(4),
-                  ),
-                  _StatCard(
-                    title: 'Acceptées',
-                    value: '$acceptedRequests',
-                    subtitle: 'Conversations ouvertes',
-                    icon: LucideIcons.circle_check,
-                    color: AppColors.brandTurquoise,
-                    onTap: () => onNavigateTab(4),
-                  ),
-                  _StatCard(
-                    title: 'Refusées',
-                    value: '$rejectedRequests',
-                    subtitle: 'Demandes déclinées',
-                    icon: LucideIcons.circle_x,
-                    color: AppColors.brandCoral,
-                    onTap: () => onNavigateTab(4),
-                  ),
-                ],
-              );
-            },
-          ),
-
-          const SizedBox(height: 24),
-
-          // ── Section 3 : Messagerie & Quotas ───────────────────────────
-          const Text(
-            'Activité de Messagerie & Quotas (10 messages)',
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isDesktop = constraints.maxWidth > 700;
-              final crossAxisCount = isDesktop ? 3 : 1;
-
-              return GridView.count(
-                crossAxisCount: crossAxisCount,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                childAspectRatio: isDesktop ? 1.8 : 2.2,
-                children: [
-                  _StatCardLarge(
-                    title: 'Conversations Actives',
-                    value: '$totalConvs',
-                    detail: 'Canaux ouverts après acceptation de demandes',
-                    icon: LucideIcons.messages_square,
-                    color: AppColors.brandBlue,
-                    onTap: () => onNavigateTab(6),
-                  ),
-                  _StatCardLarge(
-                    title: 'Messages Échangés',
-                    value: '$totalMsgs',
-                    detail: 'Total des messages transmis avec respect du quota',
-                    icon: LucideIcons.message_circle,
-                    color: AppColors.brandTurquoise,
-                    onTap: () => onNavigateTab(6),
-                  ),
-                  _StatCardLarge(
-                    title: 'Rendez-vous Planifiés',
-                    value: '$totalAppointments',
-                    detail: 'Consultations en cabinet et téléconsultations',
-                    icon: LucideIcons.calendar_check,
-                    color: const Color(0xFF6B46C1),
-                    onTap: () => onNavigateTab(5),
-                  ),
-                ],
-              );
-            },
-          ),
-
-          const SizedBox(height: 24),
-
-          // ── Section 4 : Alertes & Actions Rapides ─────────────────────
-          if (pendingDoctors > 0) ...[
+            const SizedBox(height: 10),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: AppColors.warningBg,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+                color: const Color(0xFFFFF7ED), // Ambre léger
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFFDBA74)),
               ),
-              child: Row(
+              child: Column(
                 children: [
-                  const Icon(LucideIcons.circle_alert, color: AppColors.warning, size: 24),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '$pendingDoctors médecin(s) en attente de validation',
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: AppColors.warning,
-                          ),
-                        ),
-                        const Text(
-                          'Les comptes médecins doivent être validés par l\'administration avant d\'apparaître aux patients.',
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 11,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
+                  if (pendingDoctors > 0)
+                    _AlertRow(
+                      icon: LucideIcons.user_check,
+                      title: '$pendingDoctors médecin(s) en attente de validation administrative',
+                      buttonLabel: 'Valider les médecins',
+                      color: const Color(0xFFEA580C),
+                      onTap: () => widget.onNavigateToTab(3),
                     ),
-                  ),
-                  ElevatedButton(
-                    onPressed: () => onNavigateTab(2),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.warning,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  if (pendingWithdrawalsCount > 0) ...[
+                    if (pendingDoctors > 0) const Divider(height: 16, color: Color(0xFFFED7AA)),
+                    _AlertRow(
+                      icon: LucideIcons.wallet,
+                      title: '$pendingWithdrawalsCount demande(s) de retrait financier à traiter',
+                      buttonLabel: 'Voir les finances',
+                      color: AppColors.brandCoral,
+                      onTap: () => widget.onNavigateToTab(2),
                     ),
-                    child: const Text('Valider', style: TextStyle(fontFamily: 'Poppins', color: Colors.white, fontSize: 12)),
-                  ),
+                  ],
+                  if (pendingRequests > 0) ...[
+                    const Divider(height: 16, color: Color(0xFFFED7AA)),
+                    _AlertRow(
+                      icon: LucideIcons.clock,
+                      title: '$pendingRequests demande(s) de médecin traitant en attente',
+                      buttonLabel: 'Consulter',
+                      color: AppColors.brandBlue,
+                      onTap: () => widget.onNavigateToTab(6),
+                    ),
+                  ],
                 ],
               ),
             ),
+            const SizedBox(height: 22),
           ],
 
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceSubtle,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.borderSubtle),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.brandNavy.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(LucideIcons.database, color: AppColors.brandNavy, size: 20),
-                ),
-                const SizedBox(width: 14),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Données de démonstration',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          color: AppColors.textPrimary,
-                        ),
+          // ── Titre Grille KPIs avec Toggle Réduit / Complet ──────────
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Indicateurs clés',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      _showAllCards ? 'Affichage complet (12)' : 'Vue réduite (6 cartes clés)',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: () => setState(() => _showAllCards = !_showAllCards),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF185FA5).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF185FA5).withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _showAllCards ? LucideIcons.minimize_2 : LucideIcons.maximize_2,
+                        size: 13,
+                        color: const Color(0xFF185FA5),
+                      ),
+                      const SizedBox(width: 5),
                       Text(
-                        'Générer ou réinitialiser 6 médecins (actifs, en attente, suspendu), 4 patients avec quotas, demandes et conversations.',
-                        style: TextStyle(
+                        _showAllCards ? 'Réduire' : 'Afficher tout (12)',
+                        style: const TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 11,
-                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF185FA5),
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 10),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    final confirmed = await showDialog<bool>(
-                      context: context,
-                      builder: (dialogContext) => AlertDialog(
-                        title: const Text('Générer les données démo ?', style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w700)),
-                        content: const Text('Les données locales de démonstration seront remplacées.', style: TextStyle(fontFamily: 'Poppins', fontSize: 13)),
-                        actions: [
-                          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Annuler')),
-                          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Confirmer')),
-                        ],
-                      ),
-                    );
-                    if (confirmed != true) return;
-                    await DatabaseService().seedDemoData(force: true);
-                    if (context.mounted) {
-                      await context.read<TreatingRequestProvider>().seedDemoRequests(force: true);
-                      await context.read<MessageProvider>().seedDemoConversations(force: true);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Données de démonstration chargées avec succès !'),
-                          backgroundColor: AppColors.brandTurquoise,
-                        ),
-                      );
-                    }
-                  },
-                  icon: const Icon(LucideIcons.sparkles, size: 14, color: Colors.white),
-                  label: const Text('Générer', style: TextStyle(fontFamily: 'Poppins', color: Colors.white, fontSize: 12)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.brandNavy,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Grille responsive compacte
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final int crossAxisCount;
+              final double childAspectRatio;
+
+              if (width > 1200) {
+                crossAxisCount = 4;
+                childAspectRatio = 2.25;
+              } else if (width > 850) {
+                crossAxisCount = 3;
+                childAspectRatio = 2.1;
+              } else if (width > 550) {
+                crossAxisCount = 2;
+                childAspectRatio = 2.0;
+              } else if (width > 340) {
+                crossAxisCount = 2;
+                childAspectRatio = 1.35;
+              } else {
+                crossAxisCount = 1;
+                childAspectRatio = 2.6;
+              }
+
+              final keyCards = [
+                AdminKpiCard(
+                  title: 'Utilisateurs inscrits',
+                  value: '${allUsers.length}',
+                  icon: LucideIcons.users,
+                  accentColor: const Color(0xFF0F172A),
+                  subtitle: 'Comptes enregistrés',
+                  onTap: () => widget.onNavigateToTab(4),
                 ),
-              ],
-            ),
+                AdminKpiCard(
+                  title: 'Médecins actifs',
+                  value: '$activeDoctors',
+                  icon: LucideIcons.stethoscope,
+                  accentColor: AppColors.brandBlue,
+                  subtitle: 'Sur ${allDoctors.length} praticiens',
+                  onTap: () => widget.onNavigateToTab(3),
+                ),
+                AdminKpiCard(
+                  title: 'Médecins en attente',
+                  value: '$pendingDoctors',
+                  icon: LucideIcons.user_plus,
+                  accentColor: const Color(0xFFEA580C),
+                  isAlert: pendingDoctors > 0,
+                  subtitle: 'Dossiers à valider',
+                  onTap: () => widget.onNavigateToTab(3),
+                ),
+                AdminKpiCard(
+                  title: 'Patients inscrits',
+                  value: '${allPatients.length}',
+                  icon: LucideIcons.heart_pulse,
+                  accentColor: AppColors.brandTurquoise,
+                  subtitle: 'Dossiers actifs',
+                  onTap: () => widget.onNavigateToTab(4),
+                ),
+                AdminKpiCard(
+                  title: 'Cartes patient & CMU',
+                  value: '$cardsCount',
+                  icon: LucideIcons.id_card,
+                  accentColor: const Color(0xFF185FA5),
+                  subtitle: 'Affiliations enregistrées',
+                  onTap: () => widget.onNavigateToTab(1),
+                ),
+                AdminKpiCard(
+                  title: 'Retraits en attente',
+                  value: '$pendingWithdrawalsCount',
+                  icon: LucideIcons.banknote,
+                  accentColor: AppColors.brandCoral,
+                  isAlert: pendingWithdrawalsCount > 0,
+                  subtitle: 'Paiements à transférer',
+                  onTap: () => widget.onNavigateToTab(2),
+                ),
+              ];
+
+              final moreCards = [
+                AdminKpiCard(
+                  title: 'Total Rendez-vous',
+                  value: '${allAppointments.length}',
+                  icon: LucideIcons.calendar,
+                  accentColor: const Color(0xFF8B5CF6),
+                  subtitle: 'Consultations créées',
+                  onTap: () => widget.onNavigateToTab(5),
+                ),
+                AdminKpiCard(
+                  title: 'Demandes traitant',
+                  value: '${allRequests.length}',
+                  icon: LucideIcons.user_check,
+                  accentColor: AppColors.brandBlue,
+                  subtitle: '$pendingRequests en cours',
+                  onTap: () => widget.onNavigateToTab(6),
+                ),
+                AdminKpiCard(
+                  title: 'Conversations ouvertes',
+                  value: '${conversations.length}',
+                  icon: LucideIcons.message_square,
+                  accentColor: const Color(0xFF0284C7),
+                  subtitle: 'Fils de discussion',
+                  onTap: () => widget.onNavigateToTab(7),
+                ),
+                AdminKpiCard(
+                  title: 'Messages échangés',
+                  value: '$totalMessages',
+                  icon: LucideIcons.messages_square,
+                  accentColor: const Color(0xFF059669),
+                  subtitle: 'Trafic messagerie',
+                  onTap: () => widget.onNavigateToTab(7),
+                ),
+                AdminKpiCard(
+                  title: 'Quotas messages épuisés',
+                  value: '$quotaExceededCount',
+                  icon: LucideIcons.circle_alert,
+                  accentColor: const Color(0xFFD97706),
+                  isAlert: quotaExceededCount > 0,
+                  subtitle: 'Patients au plafond gratuit',
+                  onTap: () => widget.onNavigateToTab(4),
+                ),
+                AdminKpiCard(
+                  title: 'Configuration',
+                  value: 'Opérationnel',
+                  icon: LucideIcons.settings_2,
+                  accentColor: const Color(0xFF475569),
+                  subtitle: 'Services & Démonstration',
+                  onTap: () => widget.onNavigateToTab(8),
+                ),
+              ];
+
+              return Column(
+                children: [
+                  GridView.count(
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    childAspectRatio: childAspectRatio,
+                    children: _showAllCards ? [...keyCards, ...moreCards] : keyCards,
+                  ),
+                  const SizedBox(height: 12),
+                  if (!_showAllCards)
+                    Center(
+                      child: TextButton.icon(
+                        onPressed: () => setState(() => _showAllCards = true),
+                        icon: const Icon(LucideIcons.chevron_down, size: 14, color: Color(0xFF185FA5)),
+                        label: const Text(
+                          'Afficher les 6 autres indicateurs (Rendez-vous, Messages, Quotas...)',
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF185FA5),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (_showAllCards)
+                    Center(
+                      child: TextButton.icon(
+                        onPressed: () => setState(() => _showAllCards = false),
+                        icon: const Icon(LucideIcons.chevron_up, size: 14, color: Color(0xFF185FA5)),
+                        label: const Text(
+                          'Réduire aux 6 indicateurs clés',
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF185FA5),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -421,181 +368,114 @@ class AdminOverviewView extends StatelessWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final String subtitle;
+class _AlertRow extends StatelessWidget {
   final IconData icon;
+  final String title;
+  final String buttonLabel;
   final Color color;
   final VoidCallback onTap;
 
-  const _StatCard({
-    required this.title,
-    required this.value,
-    required this.subtitle,
+  const _AlertRow({
     required this.icon,
+    required this.title,
+    required this.buttonLabel,
     required this.color,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.borderSubtle),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, color: color, size: 16),
-                ),
-              ],
-            ),
-            Text(
-              value,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: color,
-              ),
-            ),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 10,
-                color: AppColors.textMuted,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatCardLarge extends StatelessWidget {
-  final String title;
-  final String value;
-  final String detail;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _StatCardLarge({
-    required this.title,
-    required this.value,
-    required this.detail,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.borderSubtle),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, color: color, size: 26),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 440;
+        if (isNarrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
+                  Icon(icon, size: 20, color: color),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1E293B),
+                      ),
                     ),
-                  ),
-                  Text(
-                    value,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: color,
-                    ),
-                  ),
-                  Text(
-                    detail,
-                    style: const TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 10,
-                      color: AppColors.textMuted,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: onTap,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: color,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(
+                    buttonLabel,
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Icon(icon, size: 20, color: color),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
             ),
-            const Icon(LucideIcons.chevron_right, color: AppColors.textMuted, size: 18),
+            const SizedBox(width: 12),
+            ElevatedButton(
+              onPressed: onTap,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: Text(
+                buttonLabel,
+                style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 }

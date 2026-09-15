@@ -257,7 +257,12 @@ class _PatientRequestScreenState extends State<PatientRequestScreen>
             const Icon(Icons.phone_in_talk_rounded,
                 color: Colors.white, size: 18),
             const SizedBox(width: 8),
-            Text('Connexion avec ${req.doctorName}…'),
+            Expanded(
+              child: Text(
+                'Connexion avec ${req.doctorName}…',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         backgroundColor: AppColors.success,
@@ -382,31 +387,45 @@ class _RequestCard extends StatelessWidget {
                   isOnline: isAccepted,
                   isVerified: isAccepted,
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        request.doctorName,
-                        style: AppTextStyles.subtitle1
-                            .copyWith(fontWeight: FontWeight.w700),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              request.doctorName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.subtitle1
+                                  .copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _StatusBadge(request.status),
+                        ],
                       ),
                       const SizedBox(height: 2),
                       Text(
                         request.doctorSpecialty,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.body2
                             .copyWith(color: AppColors.primary),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Envoyée le ${DateFormat('d MMM yyyy', 'fr_FR').format(request.createdAt)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.caption,
                       ),
                     ],
                   ),
                 ),
-                _StatusBadge(request.status),
               ],
             ),
           ),
@@ -440,10 +459,14 @@ class _RequestCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 if (request.paymentMethod != null)
-                  Text(
-                    request.paymentMethod!.replaceAll('_', ' ').toUpperCase(),
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.textSecondary),
+                  Flexible(
+                    child: Text(
+                      request.paymentMethod!.replaceAll('_', ' ').toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.textSecondary),
+                    ),
                   ),
               ],
             ),
@@ -557,23 +580,30 @@ class _RequestCard extends StatelessWidget {
                   border: Border.all(
                       color: AppColors.warning.withValues(alpha: 0.3)),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: AppColors.warning),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      'En attente de réponse du médecin…',
-                      style: AppTextStyles.body2.copyWith(
-                          color: AppColors.warning,
-                          fontWeight: FontWeight.w500),
-                    ),
-                  ],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: AppColors.warning),
+                      ),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          'En attente de réponse du médecin…',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.body2.copyWith(
+                              color: AppColors.warning,
+                              fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

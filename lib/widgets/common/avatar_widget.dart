@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/theme/app_theme.dart';
 
 class AvatarWidget extends StatelessWidget {
@@ -52,9 +53,14 @@ class AvatarWidget extends StatelessWidget {
               radius: size / 2,
               backgroundColor:
                   backgroundColor ?? AppColors.primaryUltraLight,
-              backgroundImage:
-                  imageUrl != null ? NetworkImage(imageUrl!) : null,
-              child: imageUrl == null
+              backgroundImage: (imageUrl != null && imageUrl!.isNotEmpty)
+                  ? CachedNetworkImageProvider(
+                      imageUrl!,
+                      maxWidth: (size * 2).toInt(),
+                      maxHeight: (size * 2).toInt(),
+                    )
+                  : null,
+              child: (imageUrl == null || imageUrl!.isEmpty)
                   ? Text(
                       initials,
                       style: TextStyle(
@@ -117,12 +123,21 @@ class DoctorAvatar extends StatelessWidget {
     return parts[0].isNotEmpty ? parts[0][0].toUpperCase() : 'M';
   }
 
-  /// Tente de décoder le base64 ; retourne null si invalide.
+  static final Map<String, Uint8List?> _base64Cache = {};
+
+  /// Tente de décoder le base64 avec cache mémoire pour éviter les saccades lors du scroll.
   Uint8List? get _base64Bytes {
     if (avatarBase64 == null || avatarBase64!.isEmpty) return null;
+    if (_base64Cache.containsKey(avatarBase64!)) {
+      return _base64Cache[avatarBase64!];
+    }
     try {
-      return base64Decode(avatarBase64!);
+      final decoded = base64Decode(avatarBase64!);
+      if (_base64Cache.length > 50) _base64Cache.clear();
+      _base64Cache[avatarBase64!] = decoded;
+      return decoded;
     } catch (_) {
+      _base64Cache[avatarBase64!] = null;
       return null;
     }
   }
@@ -147,7 +162,11 @@ class DoctorAvatar extends StatelessWidget {
                 ? DecorationImage(image: MemoryImage(bytes), fit: BoxFit.cover)
                 : (imageUrl != null && imageUrl!.isNotEmpty)
                     ? DecorationImage(
-                        image: NetworkImage(imageUrl!),
+                        image: CachedNetworkImageProvider(
+                          imageUrl!,
+                          maxWidth: (size * 2).toInt(),
+                          maxHeight: (size * 2).toInt(),
+                        ),
                         fit: BoxFit.cover,
                         onError: (_, __) {},
                       )

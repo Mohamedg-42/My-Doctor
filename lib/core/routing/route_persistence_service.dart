@@ -38,7 +38,11 @@ class RoutePersistenceService {
   static int? getCachedTab(String role) {
     if (role == 'patient') return _cachedPatientTab;
     if (role == 'doctor') return _cachedDoctorTab;
-    if (role == 'admin') return _cachedAdminTab;
+    if (role == 'admin') {
+      final tab = _cachedAdminTab;
+      if (tab == null || tab < 0 || tab > 9) return 0;
+      return tab;
+    }
     return null;
   }
 
@@ -50,8 +54,9 @@ class RoutePersistenceService {
       _cachedDoctorTab = index;
       await _prefs?.setInt(_keyDoctorTab, index);
     } else if (role == 'admin') {
-      _cachedAdminTab = index;
-      await _prefs?.setInt(_keyAdminTab, index);
+      final safeIndex = (index).clamp(0, 9).toInt();
+      _cachedAdminTab = safeIndex;
+      await _prefs?.setInt(_keyAdminTab, safeIndex);
     }
   }
 
@@ -81,13 +86,13 @@ class RoutePersistenceService {
 
     if (lastRoute != null && lastRoute.isNotEmpty) {
       // Vérifier que la route sauvegardée correspond au rôle de l'utilisateur
+      if (role == UserRole.admin && (lastRoute.startsWith('/admin') || lastRoute == '/admin')) {
+        return lastRoute;
+      }
       if (role == UserRole.patient && lastRoute.startsWith('/patient')) {
         return lastRoute;
       }
       if (role == UserRole.doctor && lastRoute.startsWith('/doctor')) {
-        return lastRoute;
-      }
-      if (role == UserRole.admin && lastRoute.startsWith('/admin')) {
         return lastRoute;
       }
     }

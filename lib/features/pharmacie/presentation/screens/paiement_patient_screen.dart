@@ -7,6 +7,7 @@ import '../../data/models/paiement_mobile_model.dart';
 import '../../data/models/pharmacie_model.dart';
 import '../widgets/mobile_money_selector_widget.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../services/bictorys_service.dart';
 
 class PaiementPatientScreen extends StatefulWidget {
   final String ordonnanceId;
@@ -84,8 +85,32 @@ class _PaiementPatientScreenState extends State<PaiementPatientScreen>
     setState(() => _etat = _EtatPaiement.enCours);
     _pulseController.repeat(reverse: true);
 
-    // Simulation paiement (intégrer Kkiapay SDK en production)
-    await Future.delayed(const Duration(seconds: 3));
+    // Initialisation via la passerelle Bictorys
+    String bictorysPaymentType = 'orange_money';
+    switch (_operateurSelectionne!) {
+      case OperateurMobileMoney.wave:
+        bictorysPaymentType = 'wave_money';
+        break;
+      case OperateurMobileMoney.orangeMoney:
+        bictorysPaymentType = 'orange_money';
+        break;
+      case OperateurMobileMoney.mtnMoney:
+        bictorysPaymentType = 'mtn_money';
+        break;
+      case OperateurMobileMoney.moovMoney:
+        bictorysPaymentType = 'moov';
+        break;
+    }
+
+    final internalRef = 'PHARM-${widget.ordonnanceId}-${DateTime.now().millisecondsSinceEpoch}';
+
+    final result = await BictorysService.instance.initiatePayment(
+      amount: _montant,
+      paymentReference: internalRef,
+      paymentType: bictorysPaymentType,
+      customerName: _ordonnance?.patientNom ?? 'Patient Pharmacie',
+      customerPhone: _phoneController.text.trim(),
+    );
 
     _pulseController.stop();
     setState(() => _etat = _EtatPaiement.succes);
@@ -93,7 +118,7 @@ class _PaiementPatientScreenState extends State<PaiementPatientScreen>
 
     if (mounted) {
       final paiement = PaiementMobileModel(
-        id: 'pay_${DateTime.now().millisecondsSinceEpoch}',
+        id: result.displayReference,
         ordonnanceId: widget.ordonnanceId,
         patientId: _ordonnance?.patientId ?? '',
         pharmacieId: _ordonnance?.pharmacieId ?? '',
@@ -404,7 +429,7 @@ class _PaiementPatientScreenState extends State<PaiementPatientScreen>
   }
 }
 
-enum _EtatPaiement { formulaire, enCours, succes, echec }
+enum _EtatPaiement { formulaire, enCours, succes }
 
 // ── Widgets composants ────────────────────────────────────────────────────────
 

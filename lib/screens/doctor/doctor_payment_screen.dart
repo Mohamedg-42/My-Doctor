@@ -424,12 +424,12 @@ class _DoctorPaymentScreenState extends State<DoctorPaymentScreen>
             child: Column(
               children: [
                 SizedBox(
-                  height: 140,
+                  height: 155,
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: List.generate(months.length, (i) {
-                      final height = (values[i] / maxVal) * 120;
+                      final height = (values[i] / maxVal) * 95;
                       final isCurrent = i == months.length - 1;
                       return Column(
                         mainAxisAlignment: MainAxisAlignment.end,
@@ -546,7 +546,14 @@ class _DoctorPaymentScreenState extends State<DoctorPaymentScreen>
                   children: [
                     Icon(Icons.receipt_long_rounded, color: AppColors.primary, size: 18),
                     SizedBox(width: 8),
-                    Text('Voir le bulletin récapitulatif', style: TextStyle(fontFamily: 'Poppins', color: AppColors.primary, fontWeight: FontWeight.w600)),
+                    Flexible(
+                      child: Text(
+                        'Voir le bulletin récapitulatif',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontFamily: 'Poppins', color: AppColors.primary, fontWeight: FontWeight.w600),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -624,13 +631,24 @@ class _DoctorPaymentScreenState extends State<DoctorPaymentScreen>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('BULLETIN DE PAIE', style: TextStyle(fontFamily: 'Poppins', color: Colors.white70, fontSize: 11, letterSpacing: 1.5)),
-                              Text(auth.userName, style: const TextStyle(fontFamily: 'Poppins', color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                            ],
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('BULLETIN DE PAIE',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontFamily: 'Poppins', color: Colors.white70, fontSize: 11, letterSpacing: 1.5)),
+                                Text(
+                                  auth.userName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontFamily: 'Poppins', color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [

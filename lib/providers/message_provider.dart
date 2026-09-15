@@ -482,6 +482,18 @@ class MessageProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Envoie un message informatif / système (ex: quota atteint, paiement validé)
+  void sendSystemMessage(String convId, String text) {
+    _send(
+      convId,
+      senderId: 'system',
+      senderName: 'My Doctor',
+      senderRole: 'system',
+      text: text,
+      type: ChatMsgType.info,
+    );
+  }
+
   // ── Utilitaires internes ─────────────────────────────────────────────────────
 
   void _send(String convId, {

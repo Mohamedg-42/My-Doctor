@@ -94,68 +94,70 @@ class _ReviewScreenState extends State<ReviewScreen> {
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.star_rounded, color: Colors.white, size: 40),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Merci pour votre avis !',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Votre évaluation de ${widget.doctor.fullName} a été publiée. Cela aide la communauté à choisir les meilleurs médecins.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                color: AppColors.textSecondary,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 20),
-            // Affichage de la note
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(5, (i) => Icon(
-                Icons.star_rounded,
-                color: i < _rating ? const Color(0xFFFFB800) : AppColors.backgroundGrey,
-                size: 28,
-              )),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  shape: BoxShape.circle,
                 ),
-                onPressed: () {
-                  Navigator.pop(_);
-                  Navigator.pop(context);
-                },
-                child: const Text('Terminé',
-                    style: TextStyle(
-                        fontFamily: 'Poppins',
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600)),
+                child: const Icon(Icons.star_rounded, color: Colors.white, size: 40),
               ),
-            ),
-          ],
+              const SizedBox(height: 20),
+              const Text(
+                'Merci pour votre avis !',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Votre évaluation de ${widget.doctor.fullName} a été publiée. Cela aide la communauté à choisir les meilleurs médecins.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  color: AppColors.textSecondary,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Affichage de la note
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (i) => Icon(
+                  Icons.star_rounded,
+                  color: i < _rating ? const Color(0xFFFFB800) : AppColors.backgroundGrey,
+                  size: 28,
+                )),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(_);
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Terminé',
+                      style: TextStyle(
+                          fontFamily: 'Poppins',
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -474,6 +476,8 @@ class _DoctorInfoCard extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   doctor.specialty,
@@ -482,6 +486,8 @@ class _DoctorInfoCard extends StatelessWidget {
                     fontSize: 13,
                     color: Colors.white70,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 Row(
@@ -489,12 +495,16 @@ class _DoctorInfoCard extends StatelessWidget {
                     const Icon(Icons.star_rounded,
                         color: Color(0xFFFFD700), size: 14),
                     const SizedBox(width: 3),
-                    Text(
-                      '${doctor.rating} (${doctor.reviewCount} avis)',
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 11,
-                        color: Colors.white70,
+                    Flexible(
+                      child: Text(
+                        '${doctor.rating} (${doctor.reviewCount} avis)',
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 11,
+                          color: Colors.white70,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],

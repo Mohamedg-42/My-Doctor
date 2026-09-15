@@ -24,14 +24,18 @@ class StatutBadgeWidget extends StatelessWidget {
         children: [
           Icon(statut.icon, size: compact ? 11 : 13, color: statut.color),
           SizedBox(width: compact ? 4 : 5),
-          Text(
-            statut.label,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: compact ? 10 : 11,
-              fontWeight: FontWeight.w700,
-              color: statut.color,
-              letterSpacing: 0.3,
+          Flexible(
+            child: Text(
+              statut.label,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: compact ? 10 : 11,
+                fontWeight: FontWeight.w700,
+                color: statut.color,
+                letterSpacing: 0.3,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

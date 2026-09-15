@@ -28,6 +28,9 @@ class UserModel {
   final String? commune;
   final String? city;
   final String? idPhotoUrl;
+  final int? maxPatients;
+
+  int get patientCapacity => maxPatients ?? 50;
 
   UserModel({
     required this.id,
@@ -51,6 +54,7 @@ class UserModel {
     this.commune,
     this.city,
     this.idPhotoUrl,
+    this.maxPatients,
   });
 
   String get fullName => '${lastName.toUpperCase()} $firstName';
@@ -63,6 +67,52 @@ class UserModel {
 
   /// Display name: LASTNAME Firstname(s) form
   String get displayName => '${lastName.toUpperCase()} $firstName';
+
+  String? get formattedBirthDate {
+    if (birthDate == null) return null;
+    return '${birthDate!.day.toString().padLeft(2, '0')}/${birthDate!.month.toString().padLeft(2, '0')}/${birthDate!.year}';
+  }
+
+  static DateTime? parseFlexibleDate(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is DateTime) return raw;
+    if (raw is! String) return null;
+    final s = raw.trim();
+    if (s.isEmpty) return null;
+
+    final iso = DateTime.tryParse(s);
+    if (iso != null) return iso;
+
+    final slashParts = s.split('/');
+    if (slashParts.length == 3) {
+      final p0 = int.tryParse(slashParts[0]);
+      final p1 = int.tryParse(slashParts[1]);
+      final p2 = int.tryParse(slashParts[2]);
+      if (p0 != null && p1 != null && p2 != null) {
+        if (p0 > 1000) {
+          return DateTime(p0, p1, p2);
+        } else {
+          return DateTime(p2, p1, p0);
+        }
+      }
+    }
+
+    final dashParts = s.split('-');
+    if (dashParts.length == 3) {
+      final p0 = int.tryParse(dashParts[0]);
+      final p1 = int.tryParse(dashParts[1]);
+      final p2 = int.tryParse(dashParts[2]);
+      if (p0 != null && p1 != null && p2 != null) {
+        if (p0 > 1000) {
+          return DateTime(p0, p1, p2);
+        } else {
+          return DateTime(p2, p1, p0);
+        }
+      }
+    }
+
+    return null;
+  }
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
@@ -82,14 +132,17 @@ class UserModel {
           ? DateTime.tryParse(json['last_login_at'])
           : null,
       cmuNumber: json['cmu_number'],
-      birthDate: json['birth_date'] != null
-          ? DateTime.tryParse(json['birth_date'])
-          : null,
+      birthDate: parseFlexibleDate(json['birth_date'] ?? json['birthDate']),
       gender: json['gender'],
       profession: json['profession'],
       commune: json['commune'],
       city: json['city'],
       idPhotoUrl: json['id_photo_url'],
+      maxPatients: json['max_patients'] != null
+          ? int.tryParse(json['max_patients'].toString())
+          : (json['maxPatients'] != null
+              ? int.tryParse(json['maxPatients'].toString())
+              : null),
     );
   }
 
@@ -114,6 +167,7 @@ class UserModel {
         'commune': commune,
         'city': city,
         'id_photo_url': idPhotoUrl,
+        'max_patients': maxPatients ?? 50,
       };
 
   UserModel copyWith({
@@ -134,6 +188,7 @@ class UserModel {
     String? commune,
     String? city,
     String? idPhotoUrl,
+    int? maxPatients,
   }) {
     return UserModel(
       id: id,
@@ -157,6 +212,7 @@ class UserModel {
       commune: commune ?? this.commune,
       city: city ?? this.city,
       idPhotoUrl: idPhotoUrl ?? this.idPhotoUrl,
+      maxPatients: maxPatients ?? this.maxPatients,
     );
   }
 

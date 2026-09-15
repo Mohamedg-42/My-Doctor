@@ -17,10 +17,14 @@ import '../../models/treating_doctor_request_model.dart';
 import '../../models/user_model.dart';
 import '../../providers/message_provider.dart';
 import '../../widgets/common/avatar_widget.dart';
+import 'package:flutter_lucide/flutter_lucide.dart';
+import '../../widgets/doctor/refer_patient_dialog.dart';
 import 'patient_chat_screen.dart';
 
 class DoctorRequestsScreen extends StatefulWidget {
-  const DoctorRequestsScreen({super.key});
+  final VoidCallback? onBackToDashboard;
+
+  const DoctorRequestsScreen({super.key, this.onBackToDashboard});
 
   @override
   State<DoctorRequestsScreen> createState() => _DoctorRequestsScreenState();
@@ -63,8 +67,11 @@ class _DoctorRequestsScreenState extends State<DoctorRequestsScreen>
             .where((r) => r.status == TreatingDoctorStatus.accepted)
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        final refused = all
-            .where((r) => r.status == TreatingDoctorStatus.rejected)
+        final referred = all
+            .where((r) =>
+                r.status == TreatingDoctorStatus.rejected ||
+                r.status == TreatingDoctorStatus.referred ||
+                r.referredToDoctorId != null)
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
@@ -74,7 +81,7 @@ class _DoctorRequestsScreenState extends State<DoctorRequestsScreen>
             child: Column(
               children: [
                 _buildHeader(context, pending.length),
-                _buildTabs(pending.length, accepted.length, refused.length),
+                _buildTabs(pending.length, accepted.length, referred.length),
                 Expanded(
                   child: TabBarView(
                     controller: _tabs,
@@ -94,8 +101,8 @@ class _DoctorRequestsScreenState extends State<DoctorRequestsScreen>
                             auth.currentUser?.fullName ?? 'le médecin',
                       ),
                       _RequestList(
-                        requests: refused,
-                        statut: 'refused',
+                        requests: referred,
+                        statut: 'referred',
                         trProvider: trProvider,
                         doctorName: auth.doctorProfile?.fullName ??
                             auth.currentUser?.fullName ?? 'le médecin',
@@ -111,6 +118,16 @@ class _DoctorRequestsScreenState extends State<DoctorRequestsScreen>
     );
   }
 
+  void _handleBack(BuildContext context) {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else if (widget.onBackToDashboard != null) {
+      widget.onBackToDashboard!();
+    } else {
+      Navigator.maybePop(context);
+    }
+  }
+
   // ── Header ─────────────────────────────────────────────────
   Widget _buildHeader(BuildContext context, int pendingCount) {
     return Container(
@@ -124,14 +141,27 @@ class _DoctorRequestsScreenState extends State<DoctorRequestsScreen>
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.textWhite.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
+          Tooltip(
+            message: 'Retour',
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _handleBack(context),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.textWhite.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: AppColors.textWhite,
+                    size: 20,
+                  ),
+                ),
+              ),
             ),
-            child: const Icon(Icons.inbox_rounded,
-                color: AppColors.textWhite, size: 22),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -221,7 +251,7 @@ class _DoctorRequestsScreenState extends State<DoctorRequestsScreen>
         tabs: [
           _TabItem(label: 'En attente', count: pending, color: AppColors.warning),
           _TabItem(label: 'Acceptées', count: accepted, color: AppColors.success),
-          _TabItem(label: 'Refusées', count: refused, color: AppColors.error),
+          _TabItem(label: 'Référées', count: refused, color: const Color(0xFF185FA5)),
         ],
       ),
     );
@@ -297,8 +327,7 @@ class _RequestCardState extends State<_RequestCard> {
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.check_circle_rounded,
-                  color: Colors.white, size: 18),
+              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -317,93 +346,16 @@ class _RequestCardState extends State<_RequestCard> {
     }
   }
 
-  // ── Refuser ────────────────────────────────────────────────
-  Future<void> _refuse() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.error.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.cancel_rounded,
-                  color: AppColors.error, size: 22),
-            ),
-            const SizedBox(width: 10),
-            const Text(
-              'Refuser la demande ?',
-              style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
-        content: Text(
-          'Le patient ${widget.request.patientName} sera notifié du refus et pourra choisir un autre médecin.',
-          style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 13,
-              color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler',
-                style: TextStyle(
-                    fontFamily: 'Poppins',
-                    color: AppColors.textSecondary)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text('Refuser',
-                style: TextStyle(fontFamily: 'Poppins', color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true) return;
-
-    setState(() => _loading = true);
-    await widget.trProvider.respondToRequest(
+  // ── Référer à un confrère (remplace le refus) ────────────────
+  Future<void> _refer() async {
+    final result = await ReferPatientDialog.show(
+      context,
       requestId: widget.request.id,
-      accept: false,
-      rejectionReason: 'Le médecin n\'accepte pas de nouveaux patients pour le moment.',
+      patientName: widget.request.patientName,
+      currentDoctorId: widget.request.doctorId,
     );
-    if (mounted) {
-      setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.info_outline, color: Colors.white, size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Demande refusée. ${widget.request.patientName} a été notifié(e).',
-                  style: const TextStyle(fontFamily: 'Poppins'),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+    if (result == true && mounted) {
+      setState(() {});
     }
   }
 
@@ -474,6 +426,7 @@ class _RequestCardState extends State<_RequestCard> {
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Avatar du patient
                 AvatarWidget(
@@ -481,40 +434,56 @@ class _RequestCardState extends State<_RequestCard> {
                   initials: widget.request.patientName.isNotEmpty
                       ? widget.request.patientName[0].toUpperCase()
                       : 'P',
-                  size: 52,
+                  size: 48,
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        widget.request.patientName,
-                        style: AppTextStyles.subtitle1
-                            .copyWith(fontWeight: FontWeight.w700),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              widget.request.patientName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.subtitle1
+                                  .copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _StatusBadge(widget.request.status),
+                        ],
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Row(
                         children: [
                           const Icon(Icons.medical_services_outlined,
                               color: AppColors.primary, size: 13),
                           const SizedBox(width: 4),
-                          Text(
-                            'Demande de médecin traitant',
-                            style: AppTextStyles.caption.copyWith(
-                                color: AppColors.textSecondary),
+                          Expanded(
+                            child: Text(
+                              'Demande de médecin traitant',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.textSecondary),
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Envoyée le ${DateFormat('d MMM yyyy', 'fr_FR').format(widget.request.createdAt)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.caption,
                       ),
                     ],
                   ),
                 ),
-                _StatusBadge(widget.request.status),
               ],
             ),
           ),
@@ -531,8 +500,8 @@ class _RequestCardState extends State<_RequestCard> {
                 border: Border.all(
                     color: AppColors.success.withValues(alpha: 0.2)),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   const Icon(Icons.check_circle_rounded,
                       color: AppColors.success, size: 15),
@@ -600,6 +569,54 @@ class _RequestCardState extends State<_RequestCard> {
               ),
             ),
 
+          // ── Information de recommandation / référence ───────
+          if (widget.request.isReferred)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(LucideIcons.share_2,
+                            color: Color(0xFF8B5CF6), size: 15),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            widget.request.referredFromDoctorName != null
+                                ? 'Référé par Dr. ${widget.request.referredFromDoctorName}'
+                                : 'Patient référé à un confrère',
+                            style: AppTextStyles.caption.copyWith(
+                                color: const Color(0xFF8B5CF6),
+                                fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (widget.request.referralNote != null &&
+                        widget.request.referralNote!.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Note : "${widget.request.referralNote}"',
+                        style: AppTextStyles.caption.copyWith(
+                            color: AppColors.textSecondary,
+                            fontStyle: FontStyle.italic),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+
           // ── Canaux débloqués (si accepté) ─────────────────
           if (isAccepted) ...[
             Padding(
@@ -621,28 +638,30 @@ class _RequestCardState extends State<_RequestCard> {
                         const Icon(Icons.lock_open_rounded,
                             color: AppColors.success, size: 16),
                         const SizedBox(width: 6),
-                        Text(
-                          'Canaux de communication débloqués',
-                          style: AppTextStyles.caption.copyWith(
-                              color: AppColors.success,
-                              fontWeight: FontWeight.w700),
+                        Expanded(
+                          child: Text(
+                            'Canaux de communication débloqués',
+                            style: AppTextStyles.caption.copyWith(
+                                color: AppColors.success,
+                                fontWeight: FontWeight.w700),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 10),
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
                       children: [
                         _ChannelChip(
                             icon: Icons.chat_bubble_rounded,
                             label: 'Message',
                             color: AppColors.primary,
                             onTap: _openPatientChat),
-                        const SizedBox(width: 8),
                         const _ChannelChip(
                             icon: Icons.phone_rounded,
                             label: 'Appel',
                             color: AppColors.success),
-                        const SizedBox(width: 8),
                         const _ChannelChip(
                             icon: Icons.videocam_rounded,
                             label: 'Vidéo',
@@ -671,20 +690,20 @@ class _RequestCardState extends State<_RequestCard> {
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: _refuse,
-                            icon: const Icon(Icons.close_rounded,
-                                size: 17, color: AppColors.error),
+                            onPressed: _refer,
+                            icon: const Icon(LucideIcons.user_round_cog,
+                                size: 16, color: Color(0xFF8B5CF6)),
                             label: const Text(
-                              'Refuser',
+                              'Référer',
                               style: TextStyle(
                                 fontFamily: 'Poppins',
                                 fontSize: 13,
-                                color: AppColors.error,
+                                color: Color(0xFF8B5CF6),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: AppColors.error),
+                              side: const BorderSide(color: Color(0xFF8B5CF6)),
                               padding:
                                   const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
@@ -795,6 +814,11 @@ class _StatusBadge extends StatelessWidget {
         color = AppColors.success;
         label = 'Acceptée';
         icon = Icons.check_circle_rounded;
+        break;
+      case TreatingDoctorStatus.referred:
+        color = const Color(0xFF8B5CF6);
+        label = 'Référée';
+        icon = LucideIcons.share_2;
         break;
       case TreatingDoctorStatus.rejected:
         color = AppColors.error;

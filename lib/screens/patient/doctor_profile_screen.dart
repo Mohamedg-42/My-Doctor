@@ -772,7 +772,13 @@ class _AboutTab extends StatelessWidget {
                 children: [
                   const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.warning)),
                   const SizedBox(width: 10),
-                  Text('Demande en attente de réponse…', style: AppTextStyles.body2.copyWith(color: AppColors.warning, fontWeight: FontWeight.w500)),
+                  Flexible(
+                    child: Text(
+                      'Demande en attente de réponse…',
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.body2.copyWith(color: AppColors.warning, fontWeight: FontWeight.w500),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -783,7 +789,8 @@ class _AboutTab extends StatelessWidget {
             onTap: () => onOpenMap(doctor),
             borderRadius: BorderRadius.circular(16),
             child: Container(
-              height: 140,
+              constraints: const BoxConstraints(minHeight: 120),
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
               decoration: BoxDecoration(
                 color: AppColors.backgroundGrey,
                 borderRadius: BorderRadius.circular(16),
@@ -841,12 +848,19 @@ class _InfoRow extends StatelessWidget {
             child: Icon(icon, color: AppColors.primary, size: 16),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: AppTextStyles.caption),
-              Text(value, style: AppTextStyles.subtitle2.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: AppTextStyles.caption),
+                Text(
+                  value,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.subtitle2.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -892,7 +906,7 @@ class _BookingTab extends StatelessWidget {
 
           // Date picker
           SizedBox(
-            height: 80,
+            height: 86,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: days.length,
@@ -1315,7 +1329,15 @@ class _ConfirmRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: AppTextStyles.body2.copyWith(color: AppColors.textSecondary)),
-          Text(value, style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+            ),
+          ),
         ],
       ),
     );

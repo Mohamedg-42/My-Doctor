@@ -144,27 +144,22 @@ class WelcomeScreenOriginal extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
 
-                // Bouton d'accès direct à l'administration
-                Container(
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.pushNamed(context, '/admin'),
-                    icon: const Icon(LucideIcons.shield_check, size: 16, color: AppColors.brandNavy),
-                    label: const Text(
-                      'Portail Administrateur',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.brandNavy,
-                      ),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.brandNavy,
-                      side: BorderSide(color: AppColors.brandNavy.withValues(alpha: 0.3), width: 1.2),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      backgroundColor: AppColors.brandNavy.withValues(alpha: 0.04),
+                // Lien vers la Console Administrateur
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/admin/login');
+                  },
+                  icon: const Icon(
+                    LucideIcons.shield,
+                    size: 14,
+                    color: AppColors.textMuted,
+                  ),
+                  label: Text(
+                    'Console Administrateur',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textMuted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),

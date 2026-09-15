@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// Design Tokens officiels selon les spécifications My Doctor
 class AppColors {
@@ -242,7 +241,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       fontFamily: AppTextStyles.fontFamily,
-      textTheme: GoogleFonts.outfitTextTheme(),
+      textTheme: ThemeData.light().textTheme.apply(fontFamily: AppTextStyles.fontFamily),
       scaffoldBackgroundColor: AppColors.surfaceApp,
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.brandBlue,
@@ -369,7 +368,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       fontFamily: AppTextStyles.fontFamily,
-      textTheme: GoogleFonts.outfitTextTheme(ThemeData.dark().textTheme),
+      textTheme: ThemeData.dark().textTheme.apply(fontFamily: AppTextStyles.fontFamily),
       brightness: Brightness.dark,
       scaffoldBackgroundColor: const Color(0xFF0F172A),
       colorScheme: ColorScheme.fromSeed(

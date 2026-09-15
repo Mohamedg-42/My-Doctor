@@ -51,6 +51,9 @@ class DbUser {
   final String? specialty;
   final String? orderNumber;
   final String? bio;
+  final int? maxPatients; // Capacité maximale de patientèle choisie par le médecin
+  final int? experienceYears;
+  final double? consultationPrice;
 
   DbUser({
     required this.id,
@@ -75,7 +78,13 @@ class DbUser {
     this.specialty,
     this.orderNumber,
     this.bio,
+    this.maxPatients,
+    this.experienceYears,
+    this.consultationPrice,
   });
+
+  String get fullName => ('${lastName.toUpperCase()} $firstName').trim();
+  int get patientCapacity => maxPatients ?? 50;
 
   Map<String, dynamic> toMap() => {
     'id': id,
@@ -100,6 +109,9 @@ class DbUser {
     'specialty': specialty,
     'orderNumber': orderNumber,
     'bio': bio,
+    'maxPatients': maxPatients ?? 50,
+    'experienceYears': experienceYears,
+    'consultationPrice': consultationPrice,
   };
 
   factory DbUser.fromMap(Map<dynamic, dynamic> m) => DbUser(
@@ -134,6 +146,9 @@ class DbUser {
     specialty: m['specialty'],
     orderNumber: m['orderNumber'],
     bio: m['bio'],
+    maxPatients: m['maxPatients'] != null ? int.tryParse(m['maxPatients'].toString()) : null,
+    experienceYears: m['experienceYears'] != null ? int.tryParse(m['experienceYears'].toString()) : null,
+    consultationPrice: m['consultationPrice'] != null ? double.tryParse(m['consultationPrice'].toString()) : null,
   );
 
   DbUser copyWith({
@@ -154,6 +169,9 @@ class DbUser {
     String? cmuNumber,
     String? specialty,
     String? orderNumber,
+    int? maxPatients,
+    int? experienceYears,
+    double? consultationPrice,
   }) => DbUser(
     id: id,
     role: role,
@@ -177,6 +195,9 @@ class DbUser {
     specialty: specialty ?? this.specialty,
     orderNumber: orderNumber ?? this.orderNumber,
     bio: bio ?? this.bio,
+    maxPatients: maxPatients ?? this.maxPatients,
+    experienceYears: experienceYears ?? this.experienceYears,
+    consultationPrice: consultationPrice ?? this.consultationPrice,
   );
 }
 
@@ -199,6 +220,7 @@ class PatientMessageUsage {
   int get remaining => (freeMessagesLimit - freeMessagesUsed).clamp(0, freeMessagesLimit);
   bool get canSend => remaining > 0;
   bool get isBlocked => remaining <= 0;
+  bool get isLimitReached => isBlocked;
 
   PatientMessageUsage copyWith({
     String? patientId,
@@ -228,6 +250,61 @@ class PatientMessageUsage {
     freeMessagesUsed: m['freeMessagesUsed'] ?? 0,
     firstMessageAt: m['firstMessageAt'] != null ? DateTime.tryParse(m['firstMessageAt']) : null,
     updatedAt: DateTime.tryParse(m['updatedAt'] ?? '') ?? DateTime.now(),
+  );
+}
+
+// ─── Statut d'autorisation d'appel pour un patient ───────────────────────────
+enum CallPermissionStatus {
+  allowed,
+  requiresSubscription,
+  blockedByDoctor,
+  callsDisabled,
+}
+
+/// Politique d'appels configurée par le praticien
+class DoctorCallPolicy {
+  final String doctorId;
+  final bool callsEnabled;            // Toggle global : accepter ou non les appels directs
+  final bool allowSubscribedPatients; // Par défaut TRUE : si le patient a un abonnement payant, il peut appeler
+  final List<String> allowedPatientIds; // Patients autorisés expressément
+  final List<String> blockedPatientIds; // Patients bloqués expressément pour les appels
+
+  const DoctorCallPolicy({
+    required this.doctorId,
+    this.callsEnabled = true,
+    this.allowSubscribedPatients = true,
+    this.allowedPatientIds = const [],
+    this.blockedPatientIds = const [],
+  });
+
+  DoctorCallPolicy copyWith({
+    String? doctorId,
+    bool? callsEnabled,
+    bool? allowSubscribedPatients,
+    List<String>? allowedPatientIds,
+    List<String>? blockedPatientIds,
+  }) => DoctorCallPolicy(
+    doctorId: doctorId ?? this.doctorId,
+    callsEnabled: callsEnabled ?? this.callsEnabled,
+    allowSubscribedPatients: allowSubscribedPatients ?? this.allowSubscribedPatients,
+    allowedPatientIds: allowedPatientIds ?? this.allowedPatientIds,
+    blockedPatientIds: blockedPatientIds ?? this.blockedPatientIds,
+  );
+
+  Map<String, dynamic> toMap() => {
+    'doctorId': doctorId,
+    'callsEnabled': callsEnabled,
+    'allowSubscribedPatients': allowSubscribedPatients,
+    'allowedPatientIds': allowedPatientIds,
+    'blockedPatientIds': blockedPatientIds,
+  };
+
+  factory DoctorCallPolicy.fromMap(Map<dynamic, dynamic> m) => DoctorCallPolicy(
+    doctorId: m['doctorId'] ?? '',
+    callsEnabled: m['callsEnabled'] ?? true,
+    allowSubscribedPatients: m['allowSubscribedPatients'] ?? true,
+    allowedPatientIds: List<String>.from(m['allowedPatientIds'] ?? []),
+    blockedPatientIds: List<String>.from(m['blockedPatientIds'] ?? []),
   );
 }
 
@@ -343,6 +420,7 @@ class DatabaseService {
     String? commune,
     String? city,
     String? avatarBase64,
+    String? cmuNumber,
     List<Map<String, String>>? attachments,
   }) async {
     // Vérifier l'unicité du téléphone
@@ -356,7 +434,9 @@ class DatabaseService {
     }
 
     final id  = _generateId('pat');
-    final cmu = _generateCmu();
+    final cmu = (cmuNumber != null && cmuNumber.trim().isNotEmpty)
+        ? cmuNumber.trim()
+        : _generateCmu();
 
     final cleanFirstName = (firstName != null && firstName.trim().isNotEmpty)
         ? firstName.trim()
@@ -382,7 +462,7 @@ class DatabaseService {
       birthDate: birthDate,
       profession: profession,
       commune: commune,
-      city: city,
+      city: (city != null && city.trim().isNotEmpty) ? city.trim() : 'Abidjan',
     );
 
     await _usersBox.put(id, user.toMap());
@@ -404,6 +484,10 @@ class DatabaseService {
     String? bio,
     String? avatarBase64,
     String? birthDate,
+    String? city,
+    String? commune,
+    int? experienceYears,
+    double? consultationPrice,
     String status = 'pending',
   }) async {
     // Vérifier l'unicité de l'email si renseigné
@@ -433,6 +517,10 @@ class DatabaseService {
       specialty: specialty ?? '',
       orderNumber: orderNumber ?? '',
       bio: bio ?? (specialty != null && specialty.isNotEmpty ? 'Médecin spécialiste en $specialty.' : ''),
+      city: (city != null && city.trim().isNotEmpty) ? city.trim() : 'Abidjan',
+      commune: commune,
+      experienceYears: experienceYears,
+      consultationPrice: consultationPrice,
     );
 
     await _usersBox.put(id, user.toMap());
@@ -956,6 +1044,104 @@ class DatabaseService {
     debugPrint('🔄 Quotas réinitialisés pour tous les patients : 0/$limit');
   }
 
+  // ─── GESTION DES PERMISSIONS D'APPELS MÉDECIN ─────────────────────────────
+  static final Map<String, DoctorCallPolicy> _inMemoryCallPolicies = {};
+
+  /// Récupère la politique d'appels configurée par le praticien
+  DoctorCallPolicy getDoctorCallPolicy(String doctorId) {
+    if (doctorId.isEmpty) {
+      return const DoctorCallPolicy(doctorId: '');
+    }
+    if (_inMemoryCallPolicies.containsKey(doctorId)) {
+      return _inMemoryCallPolicies[doctorId]!;
+    }
+    try {
+      if (Hive.isBoxOpen(_Boxes.sessions)) {
+        final raw = _sessionsBox.get('call_policy_$doctorId');
+        if (raw != null && raw is Map) {
+          final policy = DoctorCallPolicy.fromMap(Map<dynamic, dynamic>.from(raw));
+          _inMemoryCallPolicies[doctorId] = policy;
+          return policy;
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ Erreur lecture policy call pour $doctorId: $e');
+    }
+    return DoctorCallPolicy(
+      doctorId: doctorId,
+      callsEnabled: true,
+      allowSubscribedPatients: true,
+      allowedPatientIds: const [],
+      blockedPatientIds: const [],
+    );
+  }
+
+  /// Sauvegarde la politique d'appels du praticien
+  Future<void> saveDoctorCallPolicy(DoctorCallPolicy policy) async {
+    _inMemoryCallPolicies[policy.doctorId] = policy;
+    try {
+      if (Hive.isBoxOpen(_Boxes.sessions)) {
+        await _sessionsBox.put('call_policy_${policy.doctorId}', policy.toMap());
+      }
+    } catch (e) {
+      debugPrint('⚠️ Erreur sauvegarde policy call: $e');
+    }
+  }
+
+  /// Autorise ou bloque expressément un patient donné pour les appels
+  Future<void> togglePatientCallPermission({
+    required String doctorId,
+    required String patientId,
+    required bool isAllowed,
+  }) async {
+    final current = getDoctorCallPolicy(doctorId);
+    final allowed = List<String>.from(current.allowedPatientIds);
+    final blocked = List<String>.from(current.blockedPatientIds);
+
+    if (isAllowed) {
+      blocked.remove(patientId);
+      if (!allowed.contains(patientId)) allowed.add(patientId);
+    } else {
+      allowed.remove(patientId);
+      if (!blocked.contains(patientId)) blocked.add(patientId);
+    }
+
+    final updated = current.copyWith(
+      allowedPatientIds: allowed,
+      blockedPatientIds: blocked,
+    );
+
+    await saveDoctorCallPolicy(updated);
+  }
+
+  /// Vérifie si un patient est autorisé à appeler le praticien
+  CallPermissionStatus checkDoctorCallPermission({
+    required String doctorId,
+    required String patientId,
+    required bool isPatientSubscribed,
+  }) {
+    final policy = getDoctorCallPolicy(doctorId);
+    if (!policy.callsEnabled) {
+      return CallPermissionStatus.callsDisabled;
+    }
+    if (policy.blockedPatientIds.contains(patientId)) {
+      return CallPermissionStatus.blockedByDoctor;
+    }
+    if (policy.allowedPatientIds.contains(patientId)) {
+      return CallPermissionStatus.allowed;
+    }
+    // Règle d'abonnement :
+    // "si le patient a un abonnement il peux l'appeler"
+    if (policy.allowSubscribedPatients) {
+      if (isPatientSubscribed) {
+        return CallPermissionStatus.allowed;
+      } else {
+        return CallPermissionStatus.requiresSubscription;
+      }
+    }
+    return CallPermissionStatus.blockedByDoctor;
+  }
+
   // ─── MISE À JOUR ──────────────────────────────────────────────────────────────
 
   Future<void> updateUserAvatar(String userId, String avatarUrl) async {
@@ -997,6 +1183,8 @@ class DatabaseService {
     String? specialty,
     String? orderNumber,
     String? bio,
+    int? experienceYears,
+    double? consultationPrice,
   }) async {
     final m = _usersBox.get(userId);
     if (m == null) return;
@@ -1018,6 +1206,8 @@ class DatabaseService {
         specialty: specialty,
         orderNumber: orderNumber,
         bio: bio,
+        experienceYears: experienceYears,
+        consultationPrice: consultationPrice,
       ).toMap(),
     );
     _doctorsStreamController.add(getAllDoctors());
@@ -1029,6 +1219,21 @@ class DatabaseService {
     final u = DbUser.fromMap(m as Map);
     await _usersBox.put(userId, u.copyWith(status: status).toMap());
     _doctorsStreamController.add(getAllDoctors());
+  }
+
+  /// Met à jour la capacité maximale de patientèle choisie par le médecin
+  Future<void> updateDoctorPatientCapacity(String doctorId, int maxPatients) async {
+    final m = _usersBox.get(doctorId);
+    if (m == null) return;
+    final u = DbUser.fromMap(m as Map);
+    await _usersBox.put(doctorId, u.copyWith(maxPatients: maxPatients).toMap());
+    _doctorsStreamController.add(getAllDoctors());
+  }
+
+  /// Retourne la capacité maximale de patientèle d'un médecin (par défaut 50)
+  int getDoctorPatientCapacity(String doctorId) {
+    final u = getUserById(doctorId);
+    return u?.patientCapacity ?? 50;
   }
 
   // ─── GESTION DES RENDEZ-VOUS ───────────────────────────────────────────────

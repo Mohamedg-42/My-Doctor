@@ -308,14 +308,17 @@ class _FaqItemState extends State<_FaqItem> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Text(
-                        'Cela vous a-t-il aidé ?',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
+                      const Expanded(
+                        child: Text(
+                          'Cela vous a-t-il aidé ?',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
                       IconButton(
                         icon: const Icon(Icons.thumb_up_outlined, size: 18),
                         onPressed: () {
