@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/appointment_model.dart';
 import '../../providers/auth_provider.dart';
@@ -684,6 +683,7 @@ class _SectionHeader extends StatelessWidget {
 // ===== APPOINTMENTS TAB =====
 typedef _AppointmentsTab = DoctorAppointmentsTab;
 typedef _AptList = DoctorAptList;
+>>>>>>> b992b745132b3302b50e0e3fccaedd90f6a210b1
 
 // ===== PATIENTS TAB (Demandes traitant) =====
 // Redirige vers DoctorRequestsScreen embarqué dans l'IndexedStack
@@ -835,13 +835,13 @@ class _DoctorProfileTabState extends State<_DoctorProfileTab> {
             ),
             const SizedBox(height: 20),
             _MenuItem(
-              icon: FontAwesomeIcons.userDoctor,
+              icon: LucideIcons.stethoscope,
               title: 'Modifier le profil',
               subtitle: 'Photo, bio, disponibilités',
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen())),
             ),
             _MenuItem(
-              icon: FontAwesomeIcons.usersGear,
+              icon: LucideIcons.users,
               title: 'Capacité de patientèle',
               subtitle: 'Définir le nombre max de patients (${auth.currentUser?.patientCapacity ?? 50} max)',
               color: AppColors.primary,
@@ -860,43 +860,50 @@ class _DoctorProfileTabState extends State<_DoctorProfileTab> {
               },
             ),
             _MenuItem(
-              icon: FontAwesomeIcons.calendarCheck,
+              icon: LucideIcons.calendar_check,
               title: 'Gérer les créneaux',
               subtitle: 'Horaires de disponibilité',
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageSlotsScreen())),
             ),
             _MenuItem(
-              icon: FontAwesomeIcons.wallet,
+              icon: LucideIcons.wallet,
               title: 'Mes revenus & Paiements',
               subtitle: 'Retrait, bulletin de paie, stats',
               color: AppColors.success,
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DoctorPaymentScreen())),
             ),
             _MenuItem(
-              icon: FontAwesomeIcons.creditCard,
+              icon: LucideIcons.credit_card,
               title: 'Abonnement',
               subtitle: '10 000 F CFA/mois',
               color: Colors.orange,
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubscriptionScreen())),
             ),
             _MenuItem(
-              icon: FontAwesomeIcons.phoneVolume,
+              icon: LucideIcons.phone_call,
               title: 'Gestion des Appels',
               subtitle: 'Permissions et filtres d\'appels',
               color: AppColors.brandBlue,
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DoctorCallSettingsScreen())),
             ),
             _MenuItem(
-              icon: FontAwesomeIcons.shieldHalved,
+              icon: LucideIcons.shield_check,
               title: 'Sécurité',
               subtitle: 'Mot de passe, 2FA',
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SecurityScreen())),
             ),
             _MenuItem(
-              icon: FontAwesomeIcons.circleQuestion,
+              icon: LucideIcons.circle_question_mark,
               title: 'Support',
               subtitle: 'Aide et contact',
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen())),
+            ),
+            _MenuItem(
+              icon: LucideIcons.shield,
+              title: 'Console Administrateur',
+              subtitle: 'Supervision & gestion du système',
+              color: AppColors.brandNavy,
+              onTap: () => Navigator.pushNamed(context, '/admin'),
             ),
             const SizedBox(height: 12),
             SizedBox(
@@ -908,7 +915,7 @@ class _DoctorProfileTabState extends State<_DoctorProfileTab> {
                     Navigator.pushNamedAndRemoveUntil(context, '/welcome', (r) => false);
                   }
                 },
-                icon: const FaIcon(FontAwesomeIcons.arrowRightFromBracket, color: AppColors.error, size: 16),
+                icon: const Icon(LucideIcons.log_out, color: AppColors.error, size: 16),
                 label: const Text('Se déconnecter', style: TextStyle(fontFamily: 'Poppins', color: AppColors.error, fontWeight: FontWeight.w600)),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: AppColors.error),
@@ -962,11 +969,11 @@ class _MenuItem extends StatelessWidget {
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(color: c.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-          child: FaIcon(icon, color: c, size: 18),
+          child: Icon(icon, color: c, size: 18),
         ),
         title: Text(title, style: AppTextStyles.subtitle2.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
         subtitle: Text(subtitle, style: AppTextStyles.caption),
-        trailing: const FaIcon(FontAwesomeIcons.chevronRight, size: 12, color: AppColors.textLight),
+        trailing: const Icon(LucideIcons.chevron_right, size: 16, color: AppColors.textLight),
         onTap: onTap ?? () {},
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

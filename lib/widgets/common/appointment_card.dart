@@ -303,7 +303,7 @@ class AppointmentCard extends StatelessWidget {
                   ),
                   const Spacer(),
                   _InfoItem(
-                    icon: appointment.isTeleconsultation ? LucideIcons.video : LucideIcons.building_2,
+                    icon: appointment.isTeleconsultation ? LucideIcons.video : LucideIcons.building_complex,
                     label: appointment.isTeleconsultation ? 'Vidéo' : 'Cabinet',
                     color: appointment.isTeleconsultation ? AppColors.brandTurquoise : AppColors.textSecondary,
                   ),
